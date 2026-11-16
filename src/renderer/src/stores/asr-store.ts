@@ -15,13 +15,13 @@ interface AsrState {
 export const useAsrStore = create<AsrState>()(
   persist(
     (set) => ({
-      engineId: "sensevoice",
+      engineId: "qwen3",
       localServiceUrl: "http://127.0.0.1:8766",
       setLocalServiceUrl: (localServiceUrl) => set({ localServiceUrl }),
       keys: {},
       setEngineId: (engineId) => set({ engineId }),
       setKey: (engineId, key) => set((s) => ({ keys: { ...s.keys, [engineId]: key } })),
     }),
-    { name: "hotclip-asr" }
+    { name: "hotclip-asr", version: 1, migrate: (persisted) => ({ ...(persisted as AsrState), engineId: "qwen3" }) }
   )
 );

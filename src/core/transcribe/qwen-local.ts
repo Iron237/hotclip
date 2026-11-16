@@ -2,6 +2,7 @@ import { rebuildWords } from "../../shared/edit-transcript";
 import type { TranscriptWord, Transcript, TranscribeOptions, TranscribeEngine } from "./types";
 import { transcribeWindows } from "./windowed";
 import { refineWordTimings, ALIGN_MIN_MATCH_FRAC } from "../align";
+import { ensureConfiguredQwenService } from "./qwen-service";
 
 export const DEFAULT_QWEN_URL = "http://127.0.0.1:8766";
 export interface QwenHealth {
@@ -76,6 +77,13 @@ function pcmBody(samples: Float32Array): { pcm: string; sampleRate: number } {
   return { pcm: buffer.toString("base64"), sampleRate: 16000 };
 }
 
+/** Independent short-context re-recognition for uncertain subtitle spans. */
+export async function qwenRehear(url: string, samples: Float32Array, signal?: AbortSignal): Promise<string> {
+  const result=await request(url,"/transcribe",{...pcmBody(samples),language:"zh"},signal) as {text?:string};
+  if(typeof result.text!=="string"||result.text.length>8000) throw new Error("qwen:invalid-rehear-text");
+  return result.text;
+}
+
 export async function qwenAlign(url: string, samples: Float32Array, text: string, language: string, signal?: AbortSignal): Promise<TranscriptWord[]> {
   const result = await request(url, "/align", { ...pcmBody(samples), text, language }, signal) as { words: unknown };
   return parseQwenWords(result.words, samples.length / 16000, 0, true);
@@ -97,7 +105,10 @@ export class QwenLocalEngine implements TranscribeEngine {
   constructor(private url = DEFAULT_QWEN_URL) { localSpeechUrl(url); }
   async isReady(): Promise<boolean> { return qwenHealth(this.url).then(() => true, () => false); }
   async transcribe(filePath: string, options: TranscribeOptions = {}): Promise<Transcript> {
-    const health = await qwenHealth(this.url, options.signal);
+    const health = await qwenHealth(this.url, options.signal).catch(async () => {
+      await ensureConfiguredQwenService(this.url, options.signal);
+      return qwenHealth(this.url, options.signal);
+    });
     return transcribeWindows(filePath, this.id, JSON.stringify([health, this.url, "qwen-v2"]), options, async (samples, start, end) => {
       const result = await request(this.url, "/transcribe", { ...pcmBody(samples), language: options.language }, options.signal) as { text: string; language: string; words?: unknown };
       if (typeof result.text !== "string" || result.text.length > 8000 || typeof result.language !== "string") throw new Error("qwen:invalid-transcript");

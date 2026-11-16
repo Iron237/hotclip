@@ -52,7 +52,7 @@ describe("handleMcpMessage", () => {
   it("tools/list includes the calling-agent export tool", async () => {
     const res = await handleMcpMessage({ id: 2, method: "tools/list" }, noop, "0");
     const tools = (res as { result: { tools: typeof MCP_TOOLS } }).result.tools;
-    expect(tools.map((t) => t.name)).toEqual(["clip_video", "detect_highlights", "transcribe_video", "export_selected_clips"]);
+    expect(tools.map((t) => t.name)).toEqual(["clip_chat_video", "clip_video", "detect_highlights", "transcribe_video", "export_selected_clips"]);
     for (const t of tools) expect(t.inputSchema).toHaveProperty("properties");
   });
 
@@ -102,7 +102,7 @@ describe("handleMcpMessage", () => {
 });
 
 describe("validateToolArgs", () => {
-  const tool = MCP_TOOLS[0]; // clip_video
+  const tool = MCP_TOOLS.find(t=>t.name==="clip_video")!;
 
   it("类型不匹配报具体参数名", () => {
     expect(validateToolArgs(tool, { videoPath: "/v.mp4", maxClips: "six" })).toContain("maxClips");

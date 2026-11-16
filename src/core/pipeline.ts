@@ -93,7 +93,7 @@ export async function transcribeCached(
   if (!s || !s.isFile()) throw new Error(`文件不存在或不可读: ${videoPath}`);
   const fileStat = { size: s.size, mtimeMs: s.mtimeMs };
   const applied = (t: Transcript): Transcript => applyGlossaryToTranscript(t, glossary ?? []).transcript;
-  const engineId = asr.engineId ?? "sensevoice";
+  const engineId = asr.engineId ?? "qwen3";
   if (!["sensevoice", "paraformer", "fireredasr", "qwen3"].includes(engineId)) throw new Error("Unknown local ASR engine");
   const cached = !asr.restart && engineId !== "qwen3" ? await readTranscriptCache(cacheDir, videoPath, fileStat, engineId) : undefined;
   if (cached) return applied(cached);

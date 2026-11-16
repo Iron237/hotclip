@@ -38,6 +38,10 @@ Input: MP4 / MKV / MOV / FLV / TS, or audio-only (podcasts get an auto-generated
 
 ## Recommended workflow
 
+0. **用户的聊天自动切片默认流程**：优先调用 `clip_chat_video`，默认 Qwen3-ASR 1.7B、终末地/B站词库、本地音色聚类；字幕和话题校核固定 `gpt-6.1-terra` / `high`。需要视觉抽查时 `visualCheck: true`，固定 `gpt-6.1-sol` / `high`，配对比较源片与成片。字幕排版后去标点，内部断句稿保留；同步导出 SRT、`字幕与上下文对照.csv`、JSON 审计。无需另配 LLM API key，复用用户 Codex CLI 登录。详见 `docs/CHAT_CLIPPING.md`。读 `chat-job.json` 中的边界、时间、角色及视觉告警；不得把 needs-review 说成已人工听校。
+
+   **当前话题边界优先于说话人连续性**：主播回答完后转回游戏解说属于新话题，即使音色相同也排除。保留的是同一话题的反应，不是后面所有反应。音色聚类仅辅助语境判断，不等于已确认身份；声纹相似、游戏配音和叠音仍要标不确定。真实停顿不足时不能为了增加尾气口引入下一句。
+
 1. **Transcript-first**: call `transcribe_video` with `format: "json"`, follow `nextOffset`, and choose complete topics or setup/payoff sequences from source timestamps. For chat recordings, visual analysis is optional and limited to candidates; use dsh-see-now if available. Then call `export_selected_clips` with `clips: [{title, startSec, endSec, reason}]`, the same ASR engine or subtitle input, and a fresh output directory. User authorization to try clipping is sufficient to export a local sample. The defaults retain landscape framing and pauses. Do not claim an interesting highlight solely because rendering succeeded.
 2. **Read the output receipt**: the export folder contains one mp4 + cover JPG + `.post.txt` (publish copy) per clip, plus `clips.json` — per-clip evidence chain (`render`: what the pipeline did) and **`qa`: render-QA report** (`status: pass|warn` with issues like black frames, long silences, loudness deviation, duration mismatch, mid-word cuts, and **platform-risk words** in title/copy/captions via a local rule lint — `qa.contentHits` lists each term and where it appeared).
 3. **Self-repair is automatic**: fixable warnings (leading/trailing silence or black frames → edge-trim; loudness deviation → second normalize pass) are repaired and re-checked in one pass; `qa.repair` records what was done (`actions`, `applied`). A repair is only kept when the re-check strictly improves.

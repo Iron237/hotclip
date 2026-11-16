@@ -5,6 +5,7 @@
  * without ffmpeg; only the caller touches the filesystem.
  */
 import type { Transcript, TranscriptWord } from "../shared/api-types";
+import { stripCaptionPunctuation } from "../shared/caption-text";
 import { hexToAssColor, hexToAssInline, isValidHex } from "./brand";
 
 export interface AssLayout {
@@ -387,6 +388,8 @@ const WHITE_INLINE = "&HFFFFFF&";
 export type CaptionStyle = "karaoke" | "keyword" | "pop" | "hormozi" | "minimal";
 
 export interface CaptionOptions extends CaptionReadabilityOptions {
+  /** Keep semantic punctuation for line planning, hide it only in displayed text. */
+  hidePunctuation?: boolean;
   fontName?: string;
   /** Verbatim keywords to emphasize (keyword style). */
   keywords?: string[];
@@ -709,7 +712,7 @@ export function buildCaptionAss(
     const planned = options.readability ? planReadableCaptions(chunkWords, maxUnits, forcedBreaks, options.endSec) : undefined;
     const units = planned ? planned.map((line) => line.words) : groupWordsIntoLines(chunkWords, maxUnits, forcedBreaks);
     for (let i = 0; i < units.length; i++) {
-      const unit = units[i];
+      const unit = options.hidePunctuation ? units[i].map(w => ({ ...w, text: stripCaptionPunctuation(w.text) })) : units[i];
       const start = unit[0].startSec - clipStartSec;
       const lastEnd = unit[unit.length - 1].endSec;
       const next = units[i + 1]?.[0].startSec;
@@ -743,7 +746,8 @@ export function buildCaptionAss(
       const nextStart = lines[i + 1]?.[0].startSec;
       const end =
         (planned?.[i].endSec ?? (nextStart !== undefined ? Math.min(nextStart, lastEnd + CAPTION_HOLD_MAX_SEC) : lastEnd)) - clipStartSec;
-      const text = style === "karaoke" ? karaokeText(line) : keywordText(line, options.keywords ?? [], highlightHex);
+      const displayed = options.hidePunctuation ? line.map(w => ({ ...w, text: stripCaptionPunctuation(w.text) })) : line;
+      const text = style === "karaoke" ? karaokeText(displayed) : keywordText(displayed, options.keywords ?? [], highlightHex);
       events.push(dialogue(start, end, speakerTag(line) + text));
     }
   }

@@ -8,6 +8,7 @@ import { probeMedia } from "./probe";
 import { sliceWords } from "./subtitle";
 import { transcribeCached } from "./pipeline";
 import type { GlossaryEntry, SpeechRunOptions } from "../shared/api-types";
+import type { Transcript } from "../shared/api-types";
 
 export interface SelectedClip {
   title: string;
@@ -33,6 +34,9 @@ export function validateSelectedClips(value: unknown, durationSec: number): Sele
 }
 
 export interface SelectedExportOptions {
+  /** Internal reviewed transcript; never accepted as arbitrary MCP input. */
+  reviewedTranscript?: Transcript;
+  hideCaptionPunctuation?: boolean;
   modelsRoot: string;
   cacheDir: string;
   fontsDir: string;
@@ -62,7 +66,7 @@ export async function exportSelectedClips(videoPath: string, selections: unknown
   }
   const captions = options.captions !== false;
   const rawTranscript = captions
-    ? await transcribeCached(videoPath, options.modelsRoot, options.cacheDir, options.glossary, undefined, options.subtitlePath, options.asr)
+    ? options.reviewedTranscript ?? await transcribeCached(videoPath, options.modelsRoot, options.cacheDir, options.glossary, undefined, options.subtitlePath, options.asr)
     : undefined;
   const checked = rawTranscript ? checkDomainLexicon(rawTranscript, options.subtitlePath ? [] : options.lexiconProfiles) : undefined;
   const transcript = checked?.transcript;
@@ -82,6 +86,7 @@ export async function exportSelectedClips(videoPath: string, selections: unknown
       vertical: options.vertical === true,
       captionStyle: captions ? "keyword" : undefined,
       subtitleFile: captions,
+      hideCaptionPunctuation: options.hideCaptionPunctuation,
       timeline: true,
       jumpCut: false,
       cleanFillers: false,

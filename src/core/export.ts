@@ -20,6 +20,7 @@ import { postTextFile, type PublishCopy } from "./publish";
 import { buildPublishPacks, coverFilter, type PackSummary } from "./publish-pack";
 import { buildSeriesPack, type SeriesPackSummary } from "./series-pack";
 import { buildSrt, srtLinesFromWords } from "./srt";
+import { stripCaptionPunctuation } from "../shared/caption-text";
 import { buildEdl, type EdlClip } from "./edl";
 import { buildDraftContent, buildDraftMetaInfo } from "./jianying";
 import { generateAiCover, type CoverTier } from "./cover-ai";
@@ -314,6 +315,8 @@ export interface ExportRenderOptions {
   vertical?: boolean;
   /** Caption style to burn in (clips must carry `words`); omit for none. */
   captionStyle?: CaptionStyle | WebCaptionStyle;
+  /** Semantic punctuation remains available to layout, but not visible in captions/SRT. */
+  hideCaptionPunctuation?: boolean;
   /** Injected web-overlay renderer (Electron main); required for web styles. */
   renderOverlay?: OverlayRenderFn;
   /** Splice out intra-clip silences (clips must carry `words`). */
@@ -846,6 +849,7 @@ export async function exportClips(
           {
             readability: true,
             endSec: captionShift + clipDuration,
+            hidePunctuation: options.hideCaptionPunctuation,
             keywords: clip.keywords,
             forcedBreaks: plan?.breaks,
             titleCard: options.titleCard ? { text: clip.title, durationSec: clipDuration } : undefined,
@@ -1442,7 +1446,8 @@ export async function exportClips(
         // 断行点与词同基:正片整体平移后,跳剪的强制断行时刻也要同步平移;
         // cold-open 接缝处强制断行(钩子行与正片首句不并行)
         const breaks = [...(shift > 0 ? [shift] : []), ...(plan?.breaks ?? []).map((b) => b + shift)];
-        const srt = buildSrt(srtLinesFromWords(relWords, breaks, relTrans, { readability: true, endSec: finalDurationSec }));
+        const srtLines = srtLinesFromWords(relWords, breaks, relTrans, { readability: true, endSec: finalDurationSec });
+        const srt = buildSrt(options.hideCaptionPunctuation ? srtLines.map(l => ({ ...l, text: stripCaptionPunctuation(l.text), secondary: l.secondary===undefined?undefined:stripCaptionPunctuation(l.secondary) })) : srtLines);
         if (srt.trim()) {
           await writeFile(outPath.replace(/\.mp4$/, ".srt"), srt, "utf8").catch(() => {});
         }

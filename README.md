@@ -1,4 +1,4 @@
-> **此 fork：Codex 按转写选段。** 新增 `export_selected_clips` MCP 工具，无需额外选段模型 API；保留聊天停顿，导出字幕与质检报告。接入方式见 [Codex MCP 使用说明](docs/CODEX_MCP.md)。
+> **此 fork：主播聊天自动切片。** `clip_chat_video` 使用默认 Qwen ASR、领域词库、音色聚类、Terra high 字幕与话题校核；导出无标点字幕和上下文对照表，可选 6.1 Sol high 视觉抽查。见 [聊天自动切片](docs/CHAT_CLIPPING.md)。手动按转写选段仍可使用 `export_selected_clips`，接入方式见 [Codex MCP 使用说明](docs/CODEX_MCP.md)。
 
 <div align="center">
 

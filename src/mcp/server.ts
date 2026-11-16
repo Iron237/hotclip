@@ -23,6 +23,7 @@ import { isClipLength } from "../shared/detection-options";
 import { exportSelectedClips } from "../core/selected-clips";
 import { checkDomainLexicon } from "../core/domain-lexicon";
 import { transcriptPage } from "../core/transcript-page";
+import { clipChatVideo } from "../core/chat-clip";
 
 // MCP clients need not launch from the repository directory.
 const fontsDir = join(__dirname, "../../resources/fonts");
@@ -64,6 +65,17 @@ async function loadReference(refPath: unknown): Promise<{ profile?: ReferencePro
 /** 工具实现:返回给 Agent 的文本。 */
 async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
   const videoPath = String(args.videoPath);
+  if (name === "clip_chat_video") {
+    return JSON.stringify(await clipChatVideo(videoPath, {
+      modelsRoot: modelsRoot(), cacheDir: cacheDir(), fontsDir, renderCacheDir: renderCacheDir(), evidenceCacheDir: evidenceCacheDir(),
+      outDir: typeof args.outDir === "string" ? args.outDir : undefined,
+      maxClips: typeof args.maxClips === "number" ? args.maxClips : undefined,
+      brief: typeof args.brief === "string" ? args.brief : undefined,
+      visualCheck: args.visualCheck === true, vertical: args.vertical === true, diarize: args.diarize !== false,
+      subtitlePath: typeof args.subtitlePath === "string" ? args.subtitlePath : undefined,
+      asr: { engineId: "qwen3", localServiceUrl: typeof args.localServiceUrl === "string" ? args.localServiceUrl : undefined },
+    }));
+  }
   if (args.lexiconProfiles !== undefined && (!Array.isArray(args.lexiconProfiles) || args.lexiconProfiles.some((p) => !["endfield", "bili-live"].includes(String(p))))) throw new Error("lexiconProfiles: endfield | bili-live");
   const lexiconProfiles = (args.lexiconProfiles ?? []) as string[];
 

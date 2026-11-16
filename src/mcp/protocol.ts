@@ -39,6 +39,21 @@ const selectionProperties = {
 
 export const MCP_TOOLS: McpToolDef[] = [
   {
+    name: "clip_chat_video",
+    description: "聊天录播自动切片：默认 Qwen3 ASR → 终末地/B站词库 → Codex gpt-6.1-terra high 跨段字幕和话题校核 → 时间对齐 → 无标点字幕和完整话题切片。排除话题结束后的游戏剧情/游戏解说，保留自然气口。同步导出 SRT、字幕与上下文 CSV/JSON 对照表及审计记录。视觉校验可选，固定 gpt-6.1-sol high。需要运行本地 Qwen 服务和已登录的 Codex CLI，不需额外 LLM API key。说话人角色由本地音色聚类辅助语境推断，簇不代表已确认身份。",
+    inputSchema: { type: "object", properties: {
+      videoPath: { type: "string", description: "本地源视频绝对路径" },
+      outDir: { type: "string", description: "新建任务目录的绝对路径，必须尚不存在" },
+      brief: { type: "string", description: "关注的话题与排除内容；默认完整聊天话题，排除游戏剧情" },
+      maxClips: { type: "number", description: "最多切片数量，1–12，默认6" },
+      visualCheck: { type: "boolean", description: "抽查成片画面，使用 gpt-6.1-sol high；默认false" },
+      diarize: { type: "boolean", description: "默认true：本地音色聚类辅助角色判断；簇不代表已确认身份" },
+      subtitlePath: { type: "string", description: "可选已有原文SRT/VTT，仍经过聊天流程字幕校核；句内时间为估算" },
+      vertical: { type: "boolean", description: "默认保留横屏；true导出竖屏" },
+      localServiceUrl: { type: "string", description: "Qwen本机服务默认 http://127.0.0.1:8766" },
+    }, required: ["videoPath"] },
+  },
+  {
     name: "clip_video",
     description:
       "全托管切片:把一个本地长视频(播客/直播回放/课程)转写、AI 找爆点并导出为可发布的竖屏短视频(烧字幕/跳剪/表情信号),返回输出目录与每条切片的标题/评分/时间码。未提供 subtitlePath 时,首次运行会自动下载本地 ASR 模型。需要环境变量 HOTCLIP_LLM_BASE_URL/HOTCLIP_LLM_MODEL(以及非本地端点的 HOTCLIP_LLM_API_KEY)。",
@@ -46,7 +61,7 @@ export const MCP_TOOLS: McpToolDef[] = [
       type: "object",
       properties: {
         videoPath: { type: "string", description: "本地视频文件的绝对路径" },
-        engineId: { type: "string", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"], description: "本地 ASR 引擎，默认 sensevoice；qwen3 需要单独启动本地语音服务。" },
+        engineId: { type: "string", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"], description: "本地 ASR 引擎，默认 qwen3；需要运行本地 Qwen 语音服务。" },
         localServiceUrl: { type: "string", description: "Qwen3 本地服务地址，仅 127.0.0.1 / ::1，默认 http://127.0.0.1:8766。" },
         restart: { type: "boolean", description: "重新转写，不复用本次素材的当前引擎分段进度；默认自动续跑。" },
         subtitlePath: { type: "string", description: "可选:与当前素材对齐的 UTF-8 SRT/WebVTT 单轨原文字幕绝对路径(最大 5 MB、无重叠)。跳过 ASR,保留原句时间;句内字词时间为估算,需复核。" },
@@ -70,7 +85,7 @@ export const MCP_TOOLS: McpToolDef[] = [
       type: "object",
       properties: {
         videoPath: { type: "string", description: "本地视频文件的绝对路径" },
-        engineId: { type: "string", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"], description: "本地 ASR 引擎，默认 sensevoice；qwen3 需要单独启动本地语音服务。" },
+        engineId: { type: "string", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"], description: "本地 ASR 引擎，默认 qwen3；需要运行本地 Qwen 语音服务。" },
         localServiceUrl: { type: "string", description: "Qwen3 本地服务地址，仅 127.0.0.1 / ::1，默认 http://127.0.0.1:8766。" },
         restart: { type: "boolean", description: "重新转写，不复用本次素材的当前引擎分段进度；默认自动续跑。" },
         subtitlePath: { type: "string", description: "可选:与当前素材对齐的 UTF-8 SRT/WebVTT 单轨原文字幕绝对路径(最大 5 MB、无重叠)。跳过 ASR,保留原句时间;句内字词时间为估算,需复核。" },
@@ -84,12 +99,12 @@ export const MCP_TOOLS: McpToolDef[] = [
   {
     name: "transcribe_video",
     description:
-      "字幕接入或本地转写:提供 subtitlePath 时导入已有字幕并估算字词时间;否则用端侧 ASR(SenseVoice,首次自动下载)把视频/音频转成带时间戳的逐句稿。结果有缓存,同一文件二次调用秒回。不需要 LLM 配置。",
+      "字幕接入或本地转写:提供 subtitlePath 时导入已有字幕并估算字词时间;否则用本地 Qwen3 ASR把视频/音频转成带时间戳的逐句稿。结果有缓存,同一文件二次调用秒回。不需要 LLM 配置。",
     inputSchema: {
       type: "object",
       properties: {
         videoPath: { type: "string", description: "本地视频/音频文件的绝对路径" },
-        engineId: { type: "string", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"], description: "本地 ASR 引擎，默认 sensevoice；qwen3 需要单独启动本地语音服务。" },
+        engineId: { type: "string", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"], description: "本地 ASR 引擎，默认 qwen3；需要运行本地 Qwen 语音服务。" },
         localServiceUrl: { type: "string", description: "Qwen3 本地服务地址，仅 127.0.0.1 / ::1，默认 http://127.0.0.1:8766。" },
         restart: { type: "boolean", description: "重新转写，不复用本次素材的当前引擎分段进度；默认自动续跑。" },
         subtitlePath: { type: "string", description: "可选:导入已有 UTF-8 SRT/WebVTT 原文字幕,跳过 ASR(最大 5 MB、无重叠)。句内字词时间为估算,需复核。" },

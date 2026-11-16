@@ -724,7 +724,7 @@ ipcMain.handle("hotclip:transcribe", async (event, filePath: unknown, engineId: 
         ? engineId
         : typeof engineId === "string" && engineId in ASR_ENGINES
           ? engineId
-          : "sensevoice";
+          : "qwen3";
     // Persistent cache: same file (size+mtime) + same engine → skip the slowest
     // step entirely. Stat may fail (unusual paths) — then we just transcribe.
     let fileStat: { size: number; mtimeMs: number } | undefined;

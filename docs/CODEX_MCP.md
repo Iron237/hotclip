@@ -8,8 +8,10 @@ that a cloud-hosted agent performs inference offline.
 
 ## Register with Codex
 
-Install dependencies with `pnpm install --frozen-lockfile`. The first transcription downloads
-the selected local ASR model. The default is SenseVoice; `fireredasr` is another supported engine.
+Install dependencies with `pnpm install --frozen-lockfile`. The default ASR is now Qwen3 via
+the configured loopback service. For the automated Terra/Sol chat workflow, use
+`clip_chat_video`; see [chat clipping](CHAT_CLIPPING.md). Explicit SenseVoice and FireRed
+remain supported and download their local models on first use.
 
 Use absolute paths to Node, the local tsx entry point, and the server:
 

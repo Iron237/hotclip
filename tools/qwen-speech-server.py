@@ -6,6 +6,8 @@ import argparse
 import base64
 import hashlib
 import json
+import os
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
 
@@ -15,20 +17,29 @@ ALIGN_LANGUAGES = set(LANGUAGES.values())
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", choices=["0.6B", "1.7B"], default="0.6B")
+    parser.add_argument("--model", choices=["0.6B", "1.7B"], default="1.7B")
+    parser.add_argument("--model-path", help="Existing local checkpoint; no download")
+    parser.add_argument("--aligner-path", help="Existing local aligner checkpoint; no download")
     parser.add_argument("--device", choices=["cpu", "mps", "cuda:0"], default="cpu")
     parser.add_argument("--port", type=int, default=8766)
     parser.add_argument("--aligner", action="store_true", help="Load the optional 0.6B forced aligner")
     args = parser.parse_args()
+    if args.model_path or args.aligner_path:
+        for path in [args.model_path, args.aligner_path]:
+            if path and not (Path(path).is_dir() and (Path(path) / 'config.json').is_file()):
+                parser.error("Local checkpoint directory is incomplete")
+        os.environ['HF_HUB_OFFLINE'] = '1'
+        os.environ['TRANSFORMERS_OFFLINE'] = '1'
     import numpy as np
     import torch
     from qwen_asr import Qwen3ASRModel, Qwen3ForcedAligner
     model_id = "Qwen/Qwen3-ASR-" + args.model
     dtype = torch.float32 if args.device in ("cpu", "mps") else torch.bfloat16
-    model = Qwen3ASRModel.from_pretrained(model_id, dtype=dtype, device_map=args.device, max_inference_batch_size=1, max_new_tokens=1024)
-    aligner = Qwen3ForcedAligner.from_pretrained("Qwen/Qwen3-ForcedAligner-0.6B", dtype=dtype, device_map=args.device) if args.aligner else None
+    model = Qwen3ASRModel.from_pretrained(args.model_path or model_id, dtype=dtype, device_map=args.device, attn_implementation='sdpa', max_inference_batch_size=1, max_new_tokens=2048, local_files_only=bool(args.model_path))
+    aligner = Qwen3ForcedAligner.from_pretrained(args.aligner_path or "Qwen/Qwen3-ForcedAligner-0.6B", dtype=dtype, device_map=args.device, attn_implementation='sdpa', local_files_only=bool(args.aligner_path)) if args.aligner or args.aligner_path else None
     # Include resolved model configuration in checkpoint identity.
-    revision = hashlib.sha256((str(getattr(model, "model", model).config) + str(dtype) + str(aligner is not None)).encode()).hexdigest()
+    identities = [(str(Path(p).resolve()), [(f.name, f.stat().st_size, f.stat().st_mtime_ns) for f in sorted(Path(p).glob('*.safetensors'))]) for p in [args.model_path, args.aligner_path] if p]
+    revision = hashlib.sha256((str(getattr(model, "model", model).config) + str(dtype) + str(aligner is not None) + json.dumps(identities)).encode()).hexdigest()
 
     inference_lock = Lock()
 
