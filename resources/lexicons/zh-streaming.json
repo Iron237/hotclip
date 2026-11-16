@@ -1,0 +1,53 @@
+{
+  "version": "2026-11-17",
+  "sources": {
+    "endfield-roster": "https://zmdwiki.com/user_list",
+    "endfield-culture": "https://wiki.biligame.com/zmd/MediaWiki:CharCulture.json",
+    "endfield-items": "https://www.endfield.games/zh-Hans/items/",
+    "bili-guard": "https://live.bilibili.com/p/html/live-app-guard/index-center.html",
+    "bili-guide": "https://live.bilibili.com/blackboard/era/u4EPvXpDYUMv7hYJ.html",
+    "bili-sc": "https://live.bilibili.com/blackboard/live-superchat-intro-web.html"
+  },
+  "profiles": {
+    "endfield": {
+      "groups": [
+        {"source": "endfield-roster", "terms": ["管理员", "佩丽卡", "陈千语", "莱万汀", "黎风", "骏卫", "伊冯", "别礼", "余烬", "洁尔佩塔", "艾尔黛拉", "大潘", "弧光", "昼雪", "狼卫", "艾维文娜", "赛希", "阿列什", "卡契尔", "埃特拉", "安塔尔", "秋栗", "萤石"]},
+        {"source": "endfield-culture", "terms": ["终末地", "终末地工业", "干员", "宏山城", "武陵科学发展区", "源石技艺", "矿石病", "权限等阶", "协议空间", "危境再现", "基质"]},
+        {"source": "endfield-items", "terms": ["帝江号", "四号谷地", "武陵", "拉冬"]}
+      ],
+      "rules": [
+        {"wrong": "中末地", "right": "终末地", "mode": "review", "note": "同音候选，须结合游戏语境或回听"},
+        {"wrong": "周末地", "right": "终末地", "mode": "review", "note": "避免误改周末等普通用词"},
+        {"wrong": "佩里卡", "right": "佩丽卡", "mode": "review"},
+        {"wrong": "陈千羽", "right": "陈千语", "mode": "review"},
+        {"wrong": "来万汀", "right": "莱万汀", "mode": "review"},
+        {"wrong": "军卫", "right": "骏卫", "mode": "review"},
+        {"wrong": "离风", "right": "黎风", "mode": "review"},
+        {"wrong": "伊枫", "right": "伊冯", "mode": "review"},
+        {"wrong": "别离", "right": "别礼", "mode": "review"},
+        {"wrong": "艾尔戴拉", "right": "艾尔黛拉", "mode": "review"},
+        {"wrong": "洁尔佩特", "right": "洁尔佩塔", "mode": "review"},
+        {"wrong": "帝疆号", "right": "帝江号", "mode": "review"},
+        {"wrong": "四号古地", "right": "四号谷地", "mode": "review"},
+        {"wrong": "武林", "right": "武陵", "mode": "review"}
+      ]
+    },
+    "bili-live": {
+      "groups": [
+        {"source": "bili-guard", "terms": ["大航海", "舰长", "提督", "总督", "舰队", "上船", "粉丝勋章", "弹幕", "直播间"]},
+        {"source": "bili-guide", "terms": ["UP主", "主播", "开播", "上舰", "粉丝团"]},
+        {"source": "bili-sc", "terms": ["醒目留言", "SC"]}
+      ],
+      "rules": [
+        {"wrong": "上剑", "right": "上舰", "mode": "context", "require": "给你|不用|舰长|大航海|打赏|续费|开通|感谢|谢谢", "exclude": "剑法|剑术|武器|装备|攻击|剑气", "note": "用户确认本次直播错词；只在附近有订阅/回应语境时修正"},
+        {"wrong": "舰涨", "right": "舰长", "mode": "review"},
+        {"wrong": "提度", "right": "提督", "mode": "review"},
+        {"wrong": "总度", "right": "总督", "mode": "review"},
+        {"wrong": "醒目留颜", "right": "醒目留言", "mode": "review"},
+        {"wrong": "粉丝讯章", "right": "粉丝勋章", "mode": "review"},
+        {"wrong": "阿主", "right": "UP主", "mode": "review"},
+        {"wrong": "本身", "right": "本声", "mode": "review", "note": "配音聊天语境候选，普通本身不可改"}
+      ]
+    }
+  }
+}

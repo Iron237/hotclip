@@ -1,3 +1,4 @@
+import { checkDomainLexicon } from "./domain-lexicon";
 /** Export decisions made by the calling agent without a second LLM call. */
 import { mkdir, open, readdir, unlink, writeFile } from "fs/promises";
 import { basename, dirname, extname, isAbsolute, join, resolve } from "path";
@@ -42,6 +43,7 @@ export interface SelectedExportOptions {
   captions?: boolean;
   subtitlePath?: string;
   glossary?: GlossaryEntry[];
+  lexiconProfiles?: string[];
   asr?: SpeechRunOptions & { engineId?: string };
 }
 
@@ -59,9 +61,11 @@ export async function exportSelectedClips(videoPath: string, selections: unknown
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   const captions = options.captions !== false;
-  const transcript = captions
+  const rawTranscript = captions
     ? await transcribeCached(videoPath, options.modelsRoot, options.cacheDir, options.glossary, undefined, options.subtitlePath, options.asr)
     : undefined;
+  const checked = rawTranscript ? checkDomainLexicon(rawTranscript, options.subtitlePath ? [] : options.lexiconProfiles) : undefined;
+  const transcript = checked?.transcript;
   if (captions && !transcript?.segments.some((s) => s.words.length > 0)) throw new Error("转写为空，无法生成字幕; 可明确设置 captions=false 导出纯画面");
   await mkdir(outDir, { recursive: true });
   const lockPath = join(outDir, ".hotclip-export.lock");
@@ -97,6 +101,8 @@ export async function exportSelectedClips(videoPath: string, selections: unknown
       outDir, selectionSource: "calling-agent", llmUsed: false,
       sourceDurationSec: media.durationSec,
       selections: selected,
+      lexiconVersion: checked?.version,
+      lexiconAudit: checked?.audit.filter((a) => selected.some((s) => a.endSec > s.startSec && a.startSec < s.endSec)) ?? [],
       exported,
       warnings: exported.flatMap((clip) => clip.qa?.status === "warn" ? [{ id: clip.id, issues: clip.qa.issues }] : []),
     };

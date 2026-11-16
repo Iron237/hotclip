@@ -27,6 +27,9 @@ Launching Node directly also keeps package-manager banners out of JSON-RPC stdou
 
 1. Call `transcribe_video` with `format: "json"`. Read every needed page using `nextOffset`;
    the default page has 50 sentences and preserves fractional `startSec` / `endSec`.
+   For Endfield / Bilibili streams, pass `lexiconProfiles: ["endfield", "bili-live"]` to both
+   transcription and export. Read `lexiconAudit`: confirmed contextual fixes preserve word
+   times, while ambiguous candidates remain for review. See [ASR lexicons](ASR_LEXICON.md).
 2. Prefer standalone topics, clear setup/payoff, and complete replies. Expand the transcript
    context around candidates before deciding boundaries. Don't mistake game dialogue or
    background music for the streamer's speech; ASR text can contain errors.

@@ -21,6 +21,7 @@ import { handleMcpMessage, type JsonRpcMessage } from "./protocol";
 import { parseGenre } from "../core/genre";
 import { isClipLength } from "../shared/detection-options";
 import { exportSelectedClips } from "../core/selected-clips";
+import { checkDomainLexicon } from "../core/domain-lexicon";
 import { transcriptPage } from "../core/transcript-page";
 
 // MCP clients need not launch from the repository directory.
@@ -63,18 +64,22 @@ async function loadReference(refPath: unknown): Promise<{ profile?: ReferencePro
 /** 工具实现:返回给 Agent 的文本。 */
 async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
   const videoPath = String(args.videoPath);
+  if (args.lexiconProfiles !== undefined && (!Array.isArray(args.lexiconProfiles) || args.lexiconProfiles.some((p) => !["endfield", "bili-live"].includes(String(p))))) throw new Error("lexiconProfiles: endfield | bili-live");
+  const lexiconProfiles = (args.lexiconProfiles ?? []) as string[];
 
   if (name === "transcribe_video") {
-    const t = await transcribeCached(videoPath, modelsRoot(), cacheDir(), await loadGlossary(userDataDir()), undefined, typeof args.subtitlePath === "string" ? args.subtitlePath : undefined, { engineId: typeof args.engineId === "string" ? args.engineId : undefined, localServiceUrl: typeof args.localServiceUrl === "string" ? args.localServiceUrl : undefined, restart: args.restart === true });
-    if (args.format === "json") return JSON.stringify({ ...transcriptPage(t, args.offset, args.limit), ...(args.subtitlePath ? { timingNote: "导入字幕的句内字词时间为估算，需复核。" } : {}) });
+    const raw = await transcribeCached(videoPath, modelsRoot(), cacheDir(), await loadGlossary(userDataDir()), undefined, typeof args.subtitlePath === "string" ? args.subtitlePath : undefined, { engineId: typeof args.engineId === "string" ? args.engineId : undefined, localServiceUrl: typeof args.localServiceUrl === "string" ? args.localServiceUrl : undefined, restart: args.restart === true });
+    const checked = checkDomainLexicon(raw, args.subtitlePath ? [] : lexiconProfiles);
+    const t = checked.transcript;
+    if (args.format === "json") return JSON.stringify({ ...transcriptPage(t, args.offset, args.limit), lexiconVersion: checked.version, lexiconAudit: checked.audit.filter((a) => t.segments.slice(Number(args.offset ?? 0), Number(args.offset ?? 0) + Number(args.limit ?? 50)).some((s) => s.id === a.segmentId)), ...(args.subtitlePath ? { timingNote: "导入字幕的句内字词时间为估算，需复核。" } : {}) });
     const lines = t.segments.map((s) => `[${fmtClock(s.startSec)}] ${s.text}`).join("\n");
     const capped = lines.length > 60_000 ? `${lines.slice(0, 60_000)}\n…(截断)` : lines;
-    return `来源:${t.engine} 语言:${t.language} 时长:${fmtClock(t.durationSec)} 共 ${t.segments.length} 句\n${args.subtitlePath ? "已导入字幕;句内字词时间为估算,需复核。\n" : ""}${capped}`;
+    return `来源:${t.engine} 语言:${t.language} 时长:${fmtClock(t.durationSec)} 共 ${t.segments.length} 句\n${args.subtitlePath ? "已导入字幕;句内字词时间为估算,需复核。\n" : ""}${capped}${checked.audit.length ? "\n词库校核:" + JSON.stringify(checked.audit) : ""}`;
   }
 
   if (name === "export_selected_clips") {
     return JSON.stringify(await exportSelectedClips(videoPath, args.clips, {
-      modelsRoot: modelsRoot(), cacheDir: cacheDir(), fontsDir,
+      modelsRoot: modelsRoot(), cacheDir: cacheDir(), fontsDir, lexiconProfiles,
       glossary: await loadGlossary(userDataDir()),
       renderCacheDir: renderCacheDir(), evidenceCacheDir: evidenceCacheDir(),
       outDir: typeof args.outDir === "string" ? args.outDir : undefined,

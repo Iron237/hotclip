@@ -93,6 +93,7 @@ export const MCP_TOOLS: McpToolDef[] = [
         localServiceUrl: { type: "string", description: "Qwen3 本地服务地址，仅 127.0.0.1 / ::1，默认 http://127.0.0.1:8766。" },
         restart: { type: "boolean", description: "重新转写，不复用本次素材的当前引擎分段进度；默认自动续跑。" },
         subtitlePath: { type: "string", description: "可选:导入已有 UTF-8 SRT/WebVTT 原文字幕,跳过 ASR(最大 5 MB、无重叠)。句内字词时间为估算,需复核。" },
+        lexiconProfiles: { type: "array", items: { type: "string", enum: ["endfield", "bili-live"] }, description: "可选领域词库；按语境修正已确认错词，其他同音候选只报告待核。保留词时间；不改用户导入字幕。" },
         format: { type: "string", enum: ["text", "json"], description: "json 返回分页逐句稿，包含精确 startSec/endSec，便于调用方自己选段；默认 text。" },
         offset: { type: "number", description: "JSON 分页起始句索引，默认 0，非负整数。" },
         limit: { type: "number", description: "JSON 每页句数，默认 50，范围 1–100。" },
@@ -107,6 +108,7 @@ export const MCP_TOOLS: McpToolDef[] = [
       type: "object",
       properties: {
         videoPath: { type: "string", description: "本地源视频绝对路径" },
+        lexiconProfiles: { type: "array", items: { type: "string", enum: ["endfield", "bili-live"] }, description: "可选领域词库；按语境修正已确认错词，其他同音候选只报告待核。保留词时间；不改用户导入字幕。" },
         clips: {
           type: "array", minItems: 1, maxItems: 12,
           items: {
