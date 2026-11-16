@@ -102,7 +102,7 @@ export const MCP_TOOLS: McpToolDef[] = [
   },
   {
     name: "export_selected_clips",
-    description: "按调用方已核实的源片时间段导出，不调用选段 LLM，不需要 API Key。默认保留横屏、完整停顿和已选边界，烧录字幕并附 SRT、EDL、封面、clips.json 质检报告。先用 transcribe_video(format=json) 读起止时间，再结合画面确认；不要编造时间或对白。",
+    description: "按调用方已核实的源片时间段导出，不调用选段 LLM，不需要 API Key。聊天先扩读前后文，保留提问、回答和后续反应；提交的起止点须已包含自然气口，不能贴字切断，工具不自动外扩。默认保留横屏、完整停顿和已选边界，烧录字幕并附 SRT、EDL、封面、clips.json 质检报告。先用 transcribe_video(format=json) 读起止时间，必要时核对音频或画面；不要编造时间或对白。",
     inputSchema: {
       type: "object",
       properties: {

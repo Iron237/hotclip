@@ -30,6 +30,13 @@ Launching Node directly also keeps package-manager banners out of JSON-RPC stdou
 2. Prefer standalone topics, clear setup/payoff, and complete replies. Expand the transcript
    context around candidates before deciding boundaries. Don't mistake game dialogue or
    background music for the streamer's speech; ASR text can contain errors.
+   For chat clips, read at least 30–60 seconds on both sides and continue until the exchange
+   resolves: include the viewer's request, the answer, and the follow-up reaction or punchline.
+   Choose final cut points in nearby speech gaps, aiming for about 0.5–1 second of lead-in and
+   1–2 seconds of natural tail room. Check audio/VAD evidence when boundaries are unclear;
+   ASR word endings can be stretched across silence. Don't cut exactly at the last word or
+   a sentence separator, and don't append padding that cuts into the next utterance. If a
+   response continues, extend to its natural end rather than forcing a short duration.
 3. Inspect frames only when needed to check a candidate. The separately installed dsh-see-now
    skill can provide deduplicated contact sheets or exact-time frames. This fork does not
    bundle that skill or automatically scan the whole video.
@@ -46,7 +53,9 @@ Launching Node directly also keeps package-manager banners out of JSON-RPC stdou
 }
 ```
 
-The output directory must be new or empty. This tool preserves selected boundaries and pauses:
+The submitted times are final edit boundaries, already including context and breathing room;
+the renderer does not add it automatically. The output directory must be new or empty.
+This tool preserves selected boundaries and pauses:
 no silence removal, filler deletion, automatic shot snapping, or QA edge trimming. It burns
 subtitles and exports MP4, SRT, EDL, covers, `clips.json`, and `selection.json`. Inspect QA warnings
 and the resulting subtitle text before calling the clip ready. A successful encode does not

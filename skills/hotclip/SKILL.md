@@ -45,7 +45,8 @@ Input: MP4 / MKV / MOV / FLV / TS, or audio-only (podcasts get an auto-generated
 
 ## Hard rules
 
-- **Never guess timestamps.** Cut points come from word-aligned transcription (`highlights` output); do not invent start/end seconds or hand-roll ffmpeg cuts when the pipeline covers it.
+- **完整互动与气口**：聊天候选先扩读前后至少 30–60 秒，必要时继续读到话题收束；保留观众提问、铺垫、回答、后续反应。最终入点尽量在首句前 0.5–1 秒的自然间隙，出点尽量在末句后 1–2 秒的自然间隙。用音频/VAD复核不清楚的边界；ASR的最后一个字可能被拉长到整段静音。不能贴字切断、只保留观点而漏掉互动，也不能机械加时把下一句切进一半。时长服从内容完整，`export_selected_clips` 只执行已选好的最终边界。
+- **Never guess timestamps.** Derive topic boundaries from the timed transcript and verify surrounding speech gaps before choosing final cut points; do not invent start/end seconds or hand-roll ffmpeg cuts when the pipeline covers it.
 - **Local-first**: ASR and rendering are local. The agent may read task-relevant transcripts and selected frames to do the requested analysis; do not send media to unrelated external services.
 - Exports land next to the source video in `<name>-hotclip/` unless `--out` is given; tell the user the absolute path when done.
 
