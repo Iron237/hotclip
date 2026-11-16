@@ -46,7 +46,7 @@
         {"wrong": "醒目留颜", "right": "醒目留言", "mode": "review"},
         {"wrong": "粉丝讯章", "right": "粉丝勋章", "mode": "review"},
         {"wrong": "阿主", "right": "UP主", "mode": "review"},
-        {"wrong": "本身", "right": "本声", "mode": "review", "note": "配音聊天语境候选，普通本身不可改"}
+        {"wrong": "本身", "right": "本声", "mode": "context", "require": "声音留在游戏里|用(?:我的)?本身(?:说|念)", "note": "用户确认本段配音话题为本声；仅限留声于游戏或用本声说/念的局部语境，普通本身仍待复核"}
       ]
     }
   }

@@ -24,6 +24,15 @@ it("requires opt-in and refuses unknown profiles", () => {
   expect(checkDomainLexicon(sample("给你上剑")).audit).toEqual([]);
   expect(() => checkDomainLexicon(sample("test"), ["bad"])).toThrow();
 });
+it("corrects confirmed natural-voice phrases without changing ordinary 本身", () => {
+  for (const text of ["只把这个声音留在游戏里，所以就是其实它不算是我的本身。", "但是我可以呃可以用本身说一句，谢谢大家。"]) {
+    const raw = sample(text);
+    const result = checkDomainLexicon(raw, ["bili-live"]);
+    expect(result.transcript.segments[0].text).toBe(text.replace("本身", "本声"));
+    expect(result.transcript.segments[0].words.map(w => [w.startSec, w.endSec])).toEqual(raw.segments[0].words.map(w => [w.startSec, w.endSec]));
+  }
+  expect(checkDomainLexicon(sample("游戏本身很好，声音也很好"), ["bili-live"]).transcript.segments[0].text).toBe("游戏本身很好，声音也很好");
+});
 it("does not invent word alignment if original word text differs", () => {
   const t = sample("给你上剑"); t.segments[0].words = [];
   const r = checkDomainLexicon(t, ["bili-live"]);
