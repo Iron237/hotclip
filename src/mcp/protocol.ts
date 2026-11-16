@@ -93,8 +93,40 @@ export const MCP_TOOLS: McpToolDef[] = [
         localServiceUrl: { type: "string", description: "Qwen3 本地服务地址，仅 127.0.0.1 / ::1，默认 http://127.0.0.1:8766。" },
         restart: { type: "boolean", description: "重新转写，不复用本次素材的当前引擎分段进度；默认自动续跑。" },
         subtitlePath: { type: "string", description: "可选:导入已有 UTF-8 SRT/WebVTT 原文字幕,跳过 ASR(最大 5 MB、无重叠)。句内字词时间为估算,需复核。" },
+        format: { type: "string", enum: ["text", "json"], description: "json 返回分页逐句稿，包含精确 startSec/endSec，便于调用方自己选段；默认 text。" },
+        offset: { type: "number", description: "JSON 分页起始句索引，默认 0，非负整数。" },
+        limit: { type: "number", description: "JSON 每页句数，默认 50，范围 1–100。" },
       },
       required: ["videoPath"],
+    },
+  },
+  {
+    name: "export_selected_clips",
+    description: "按调用方已核实的源片时间段导出，不调用选段 LLM，不需要 API Key。默认保留横屏、完整停顿和已选边界，烧录字幕并附 SRT、EDL、封面、clips.json 质检报告。先用 transcribe_video(format=json) 读起止时间，再结合画面确认；不要编造时间或对白。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        videoPath: { type: "string", description: "本地源视频绝对路径" },
+        clips: {
+          type: "array", minItems: 1, maxItems: 12,
+          items: {
+            type: "object", required: ["title", "startSec", "endSec"],
+            properties: {
+              title: { type: "string", maxLength: 120 },
+              startSec: { type: "number", minimum: 0, description: "源片绝对秒数，允许小数" },
+              endSec: { type: "number", description: "大于 startSec，且不能超过源片时长" },
+              reason: { type: "string", maxLength: 1200, description: "调用方观察到的选段依据" },
+            },
+          },
+        },
+        outDir: { type: "string", description: "绝对路径，必须尚不存在或为空；缺省在源片旁新建独立目录" },
+        captions: { type: "boolean", description: "烧录字幕并生成 SRT，默认 true；无转写时首次下载本地模型" },
+        vertical: { type: "boolean", description: "裁成竖屏，默认 false；游戏建议保留横屏" },
+        engineId: { type: "string", enum: ["sensevoice", "paraformer", "fireredasr", "qwen3"] },
+        localServiceUrl: { type: "string", description: "Qwen3 本地 ASR 服务地址，仅 loopback" },
+        subtitlePath: { type: "string", description: "可选 UTF-8 SRT/VTT，需与源片对齐；句内词时间为估算" },
+      },
+      required: ["videoPath", "clips"],
     },
   },
 ];
@@ -112,6 +144,7 @@ export function validateToolArgs(tool: McpToolDef, args: Record<string, unknown>
     if (spec.type === "number" && actual !== "number") return `参数 ${key} 应为 number`;
     if (spec.type === "string" && actual !== "string") return `参数 ${key} 应为 string`;
     if (spec.type === "boolean" && actual !== "boolean") return `参数 ${key} 应为 boolean`;
+    if (spec.type === "array" && !Array.isArray(value)) return `参数 ${key} 应为 array`;
     if (spec.enum && !spec.enum.includes(value)) return `参数 ${key} 应为 ${spec.enum.join("|")}`;
   }
   return null;

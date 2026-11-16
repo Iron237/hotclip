@@ -23,12 +23,13 @@ it("exposes and validates genre and duration on both detection tools", async () 
   }
 });
 
-it("exposes and validates the same optional subtitle path on all three tools", async () => {
+it("exposes and validates the same optional subtitle path on all tools", async () => {
   for (const tool of MCP_TOOLS) {
+    const args = { videoPath: "/v.mp4", ...(tool.name === "export_selected_clips" ? { clips: [{ title: "test", startSec: 0, endSec: 1 }] } : {}) };
     expect((tool.inputSchema.properties as Record<string, unknown>).subtitlePath).toMatchObject({ type: "string" });
-    expect(validateToolArgs(tool, { videoPath: "/v.mp4", subtitlePath: 5 })).toContain("subtitlePath");
+    expect(validateToolArgs(tool, { ...args, subtitlePath: 5 })).toContain("subtitlePath");
     const result = await handleMcpMessage({ id: 42, method: "tools/call", params: {
-      name: tool.name, arguments: { videoPath: "/v.mp4", subtitlePath: "/original.vtt" },
+      name: tool.name, arguments: { ...args, subtitlePath: "/original.vtt" },
     } }, async (_name, args) => String(args.subtitlePath), "test");
     expect(result).toMatchObject({ result: { content: [{ text: "/original.vtt" }] } });
   }
@@ -48,10 +49,10 @@ describe("handleMcpMessage", () => {
     expect(await handleMcpMessage({ jsonrpc: "2.0", method: "notifications/initialized" }, noop, "0")).toBeNull();
   });
 
-  it("tools/list 列出三个工具且带 schema", async () => {
+  it("tools/list includes the calling-agent export tool", async () => {
     const res = await handleMcpMessage({ id: 2, method: "tools/list" }, noop, "0");
     const tools = (res as { result: { tools: typeof MCP_TOOLS } }).result.tools;
-    expect(tools.map((t) => t.name)).toEqual(["clip_video", "detect_highlights", "transcribe_video"]);
+    expect(tools.map((t) => t.name)).toEqual(["clip_video", "detect_highlights", "transcribe_video", "export_selected_clips"]);
     for (const t of tools) expect(t.inputSchema).toHaveProperty("properties");
   });
 

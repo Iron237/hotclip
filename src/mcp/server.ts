@@ -20,6 +20,11 @@ import { loadPerformanceMemory } from "../core/performance-memory";
 import { handleMcpMessage, type JsonRpcMessage } from "./protocol";
 import { parseGenre } from "../core/genre";
 import { isClipLength } from "../shared/detection-options";
+import { exportSelectedClips } from "../core/selected-clips";
+import { transcriptPage } from "../core/transcript-page";
+
+// MCP clients need not launch from the repository directory.
+const fontsDir = join(__dirname, "../../resources/fonts");
 
 function fmtClock(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -61,9 +66,22 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
 
   if (name === "transcribe_video") {
     const t = await transcribeCached(videoPath, modelsRoot(), cacheDir(), await loadGlossary(userDataDir()), undefined, typeof args.subtitlePath === "string" ? args.subtitlePath : undefined, { engineId: typeof args.engineId === "string" ? args.engineId : undefined, localServiceUrl: typeof args.localServiceUrl === "string" ? args.localServiceUrl : undefined, restart: args.restart === true });
+    if (args.format === "json") return JSON.stringify({ ...transcriptPage(t, args.offset, args.limit), ...(args.subtitlePath ? { timingNote: "导入字幕的句内字词时间为估算，需复核。" } : {}) });
     const lines = t.segments.map((s) => `[${fmtClock(s.startSec)}] ${s.text}`).join("\n");
     const capped = lines.length > 60_000 ? `${lines.slice(0, 60_000)}\n…(截断)` : lines;
     return `来源:${t.engine} 语言:${t.language} 时长:${fmtClock(t.durationSec)} 共 ${t.segments.length} 句\n${args.subtitlePath ? "已导入字幕;句内字词时间为估算,需复核。\n" : ""}${capped}`;
+  }
+
+  if (name === "export_selected_clips") {
+    return JSON.stringify(await exportSelectedClips(videoPath, args.clips, {
+      modelsRoot: modelsRoot(), cacheDir: cacheDir(), fontsDir,
+      glossary: await loadGlossary(userDataDir()),
+      renderCacheDir: renderCacheDir(), evidenceCacheDir: evidenceCacheDir(),
+      outDir: typeof args.outDir === "string" ? args.outDir : undefined,
+      vertical: args.vertical === true, captions: args.captions !== false,
+      subtitlePath: typeof args.subtitlePath === "string" ? args.subtitlePath : undefined,
+      asr: { engineId: typeof args.engineId === "string" ? args.engineId : undefined, localServiceUrl: typeof args.localServiceUrl === "string" ? args.localServiceUrl : undefined },
+    }));
   }
 
   if (name === "detect_highlights") {
@@ -122,7 +140,7 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
       subtitlePath: typeof args.subtitlePath === "string" ? args.subtitlePath : undefined,
       asr: { engineId: typeof args.engineId === "string" ? args.engineId : undefined, localServiceUrl: typeof args.localServiceUrl === "string" ? args.localServiceUrl : undefined, restart: args.restart === true },
       outDir: typeof args.outDir === "string" && args.outDir.trim() ? args.outDir : undefined,
-      fontsDir: join(process.cwd(), "resources", "fonts"),
+      fontsDir,
       glossary: await loadGlossary(userDataDir()),
       reference: ref.profile,
       reviewMemory: await loadReviewMemory(userDataDir()),

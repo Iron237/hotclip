@@ -15,5 +15,5 @@
       "@core/*": ["./src/core/*"]
     }
   },
-  "include": ["src/main/**/*", "src/preload/**/*", "src/core/**/*", "src/shared/**/*", "electron.vite.config.ts"]
+  "include": ["src/main/**/*", "src/preload/**/*", "src/core/**/*", "src/shared/**/*", "src/mcp/**/*", "electron.vite.config.ts"]
 }

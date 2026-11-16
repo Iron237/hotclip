@@ -1,0 +1,11 @@
+# pnpm 11 no longer reads package.json#pnpm.onlyBuiltDependencies.
+# Keep dependency lifecycle scripts explicitly scoped to the bundled runtimes.
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  ffmpeg-static: true
+  onnxruntime-node: true
+  '@ffprobe-installer/darwin-arm64': true
+  '@ffprobe-installer/win32-x64': true
+  '@ffprobe-installer/linux-x64': true

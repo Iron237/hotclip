@@ -1,3 +1,5 @@
+> **此 fork：Codex 按转写选段。** 新增 `export_selected_clips` MCP 工具，无需额外选段模型 API；保留聊天停顿，导出字幕与质检报告。接入方式见 [Codex MCP 使用说明](docs/CODEX_MCP.md)。
+
 <div align="center">
 
 <a href="https://github.com/xixihhhh/hotclip/releases/latest">
