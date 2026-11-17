@@ -13,6 +13,10 @@
   "scripts": {
     "dev": "electron-vite dev",
     "dev:web": "vite --config vite.renderer.config.ts",
+    "studio": "tsx tools/studio.mts",
+    "studio:build": "vite build --config vite.studio.config.ts",
+    "studio:check": "tsc --noEmit -p tsconfig.studio.json",
+    "studio:test": "tsx tools/studio-smoke.mts",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
@@ -26,6 +30,8 @@
     "dist": "electron-vite build && electron-builder --publish never"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

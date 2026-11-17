@@ -1,4 +1,6 @@
-> **此 fork：主播聊天自动切片与录播上下文。** `structure_recording` 将录播和弹幕转换成背景、事件、互动关系、话题和兴趣点，`read_recording_context` 按需回查，见 [结构化上下文工作流](docs/STRUCTURED_CONTEXT_WORKFLOW.md)。`clip_chat_video` 使用默认 Qwen ASR、领域词库、音色聚类、Terra high 字幕与话题校核；导出无标点字幕和上下文对照表，可选 6.1 Sol high 视觉抽查。见 [聊天自动切片](docs/CHAT_CLIPPING.md) 和 [Codex MCP 接入](docs/CODEX_MCP.md)。
+> **此 fork：主播聊天自动切片与录播上下文。** `structure_recording` 将录播和弹幕转换成背景、事件、互动关系、话题和兴趣点，`read_recording_context` 按需回查，见 [结构化上下文工作流](docs/STRUCTURED_CONTEXT_WORKFLOW.md)。`clip_chat_video` 使用默认 Qwen ASR、领域词库、音色聚类、Terra high 字幕校核与 Sol high 话题分析；导出无标点字幕和上下文对照表，可选 6.1 Sol high 视觉抽查。见 [聊天自动切片](docs/CHAT_CLIPPING.md) 和 [Codex MCP 接入](docs/CODEX_MCP.md)。
+
+> **交互式 Web 切片后台：** 三页完成兴趣点选段、入出点精调、字幕审核和实际压制导出，支持直播弹幕预览/压制、自动保存和字幕上下文对照。运行 `pnpm studio:build` 后使用 `pnpm studio <已分析录播目录>` 启动，见 [Web Studio 使用说明](docs/WEB_STUDIO.md)。
 
 <div align="center">
 
