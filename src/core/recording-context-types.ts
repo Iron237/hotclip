@@ -10,7 +10,7 @@ export interface ContextSession {
   backgroundEvidence:Array<{field:string;value:string;source:"user"|"recorder_metadata"}>;
   source:{path:string;size:number;mtimeMs:number;durationSec:number;recordingStartTime:string|null};
   clock:{unit:"seconds";origin:"source-media-start";chatOffsetSec:number;chatScale:number;alignment:"user-supplied"|"sidecar-relative-unverified"|"no-chat"};
-  models:{subtitle:string;visual:string;reasoningEffort:string};
+  models:{subtitle:string;analysis?:string;visual:string;reasoningEffort:string};
   warnings:string[];
 }
 export interface UtteranceEvent {

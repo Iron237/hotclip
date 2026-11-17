@@ -7,7 +7,7 @@ import { CHAT_MODELS } from "./chat-review";
 import { setTimeout as delay } from "timers/promises";
 
 /** Uses the user's existing Codex login. Never substitutes a different model. */
-export async function codexReview(prompt: string, schema: unknown, kind: "subtitle" | "visual" = "subtitle", images: string[] = [], signal?: AbortSignal) {
+export async function codexReview(prompt: string, schema: unknown, kind: "subtitle" | "analysis" | "visual" = "subtitle", images: string[] = [], signal?: AbortSignal) {
   for(let attempt=0;;attempt++) {
     try {return await runReview(prompt,schema,kind,images,signal);}
     catch(error) {
@@ -18,7 +18,7 @@ export async function codexReview(prompt: string, schema: unknown, kind: "subtit
     }
   }
 }
-async function runReview(prompt: string, schema: unknown, kind: "subtitle" | "visual", images: string[], signal?: AbortSignal):Promise<unknown> {
+async function runReview(prompt: string, schema: unknown, kind: "subtitle" | "analysis" | "visual", images: string[], signal?: AbortSignal):Promise<unknown> {
   if (prompt.length > 240_000 || images.length > 8) throw new Error("codex-review:input-limit");
   const temp = await mkdtemp(join(tmpdir(), "hotclip-review-"));
   const output = join(temp, "result.json"), schemaFile = join(temp, "schema.json");

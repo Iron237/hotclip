@@ -40,7 +40,7 @@ const selectionProperties = {
 export const MCP_TOOLS: McpToolDef[] = [
   {
     name:"structure_recording",
-    description:"把录播转换为结构化上下文，不剪片。默认Qwen转写/词库/音色聚类、Terra high校核与互动理解；读同名XML/JSONL弹幕，输出背景、主播/游戏话语、弹幕、互动关系、话题、带证据的兴趣点、分页上下文包和CSV对照表。画面观察仅在提供visualTimes时由gpt-6.1-sol high执行。候选关联和未知来源保留不确定性。",
+    description:"把录播转换为结构化上下文，不剪片。默认Qwen转写/词库/音色聚类、Terra high字幕校核、Sol high互动理解；读同名XML/JSONL弹幕，输出背景、主播/游戏话语、弹幕、互动关系、话题、带证据的兴趣点、分页上下文包和CSV对照表。画面观察仅在提供visualTimes时由gpt-6.1-sol high执行。候选关联和未知来源保留不确定性。",
     inputSchema:{type:"object",properties:{
       videoPath:{type:"string",description:"源录播绝对路径"},outDir:{type:"string",description:"尚不存在的输出目录绝对路径"},
       resume:{type:"boolean",description:"继续相同outDir的失败任务；源文件及处理选项必须一致，复用已完成的转写、聚类和模型结果"},
@@ -62,7 +62,7 @@ export const MCP_TOOLS: McpToolDef[] = [
   },
   {
     name: "clip_chat_video",
-    description: "聊天录播自动切片：默认 Qwen3 ASR → 终末地/B站词库 → Codex gpt-6.1-terra high 跨段字幕和话题校核 → 时间对齐 → 无标点字幕和完整话题切片。排除话题结束后的游戏剧情/游戏解说，保留自然气口。同步导出 SRT、字幕与上下文 CSV/JSON 对照表及审计记录。视觉校验可选，固定 gpt-6.1-sol high。需要运行本地 Qwen 服务和已登录的 Codex CLI，不需额外 LLM API key。说话人角色由本地音色聚类辅助语境推断，簇不代表已确认身份。",
+    description: "聊天录播自动切片：默认 Qwen3 ASR → 终末地/B站词库 → Codex gpt-6.1-terra high 跨段字幕校核 + gpt-6.1-sol high 话题分析 → 时间对齐 → 无标点字幕和完整话题切片。排除话题结束后的游戏剧情/游戏解说，保留自然气口。同步导出 SRT、字幕与上下文 CSV/JSON 对照表及审计记录。视觉校验可选，固定 gpt-6.1-sol high。需要运行本地 Qwen 服务和已登录的 Codex CLI，不需额外 LLM API key。说话人角色由本地音色聚类辅助语境推断，簇不代表已确认身份。",
     inputSchema: { type: "object", properties: {
       videoPath: { type: "string", description: "本地源视频绝对路径" },
       outDir: { type: "string", description: "新建任务目录的绝对路径，必须尚不存在" },

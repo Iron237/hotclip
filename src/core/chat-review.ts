@@ -2,7 +2,7 @@ import type { Transcript, TranscriptWord } from "../shared/api-types";
 import lexicons from "../../resources/lexicons/zh-streaming.json";
 import { stripCaptionPunctuation } from "../shared/caption-text";
 
-export const CHAT_MODELS = { subtitle: "gpt-6.1-terra", visual: "gpt-6.1-sol", reasoningEffort: "high" } as const;
+export const CHAT_MODELS = { subtitle: "gpt-6.1-terra", analysis: "gpt-6.1-sol", visual: "gpt-6.1-sol", reasoningEffort: "high" } as const;
 export const CHAT_LEXICONS = ["endfield", "bili-live"];
 export const withoutPunctuation = (text: string): string => stripCaptionPunctuation(text).trim();
 export interface IndexedWord extends TranscriptWord { id: number }

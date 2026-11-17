@@ -41,7 +41,7 @@ export async function clipChatVideo(videoPath: string, options: ChatClipOptions)
   const save = (name: string, value: unknown) => writeFile(join(root, name), JSON.stringify(value, null, 2), "utf8");
   try {
     const {raw,checked,words,rawWords,turns,speakerEvidence,speakerWarnings}=await prepareChatTranscript(videoPath,options,root);
-    stage("Terra high topic selection");
+    stage("Sol high topic selection");
     const choices = await selectChatTopics(turns,words,maxClips,options.brief ?? "聊天互动、完整话题和笑点；排除游戏剧情对白及话题结束后转回游戏的解说",save,options.signal);
     const selectedIds = new Set(choices.flatMap(c => Array.from({length:c.lastTurn-c.firstTurn+1},(_,i)=>c.firstTurn+i)));
     stage("Re-recognize uncertain captions with audio context; Terra high review");

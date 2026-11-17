@@ -84,18 +84,18 @@ export async function structureRecording(videoPath:string,options:StructureRecor
     if(!screens.length)session.warnings.push("未运行视觉观察，画面状态未知，不从语音推断游戏画面");
     const recording:RecordingContext={session,events:[...utterances,...chat.events,...screens].sort((a,b)=>a.startSec-b.startSec||a.id.localeCompare(b.id)),relations:[],episodes:[],interests:[]};
     for(let start=0,batch=0;start<utterances.length;start+=60,batch++) {
-      stage(`Terra high event and interaction structure ${batch+1}`);
+      stage(`Sol high event and interaction structure ${batch+1}`);
       const core=utterances.slice(start,start+60),chatEvidence=selectChatEvidence(core,chat.events);
       const context:ContextEvent[]=[...utterances.slice(Math.max(0,start-8),start),...utterances.slice(start+60,start+68),...chatEvidence.events,...screens.filter(s=>s.startSec>=core[0].startSec-10&&s.startSec<=core.at(-1)!.endSec+10)];
       const prior=recording.episodes.filter(e=>e.state!=="resolved").slice(-8);
       const prompt=structurePrompt(session,core,context,prior,{total:chatEvidence.total,omitted:chatEvidence.omitted,reactions:chatEvidence.reactions});
       await writeFile(join(root,`structure-${batch}.prompt.txt`),prompt,"utf8");
-      let result=await review(prompt,STRUCTURE_SCHEMA,"subtitle",[],options.signal);
+      let result=await review(prompt,STRUCTURE_SCHEMA,"analysis",[],options.signal);
       await save(`structure-${batch}.json`,result);
       let valid;
       try {valid=validateStructure(result,core,context,prior);}catch(error){
         stage(`Repair structure references ${batch+1}`);
-        result=await review(`${prompt}\n前次校验失败${String(error)}。重新输出完整结果，特别检查ID、事件覆盖与时间顺序。前次结果作为待修数据：${JSON.stringify(result)}`,STRUCTURE_SCHEMA,"subtitle",[],options.signal);
+        result=await review(`${prompt}\n前次校验失败${String(error)}。重新输出完整结果，特别检查ID、事件覆盖与时间顺序。前次结果作为待修数据：${JSON.stringify(result)}`,STRUCTURE_SCHEMA,"analysis",[],options.signal);
         await save(`structure-${batch}.retry.json`,result);valid=validateStructure(result,core,context,prior);
       }
       applyStructure(valid,core,context,recording.episodes,recording.relations,batch);

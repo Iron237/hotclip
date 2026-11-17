@@ -32,7 +32,7 @@ export function compactEvent(e:ContextEvent):string {
 }
 export function contextMarkdown(recording:RecordingContext):string {
   const {session,episodes,events,relations,interests}=recording;
-  const lines=["# 录播结构化上下文","",`模型：${session.models.subtitle} / ${session.models.reasoningEffort}`,"",
+  const lines=["# 录播结构化上下文","",`字幕模型：${session.models.subtitle}；主分析：${session.models.analysis??session.models.subtitle} / ${session.models.reasoningEffort}`,"",
     `背景：${JSON.stringify(session.background)}`,`时钟：${JSON.stringify(session.clock)}`,"",
     "说明：游戏画面与主播互动可以同时发生；声音簇不是角色身份；candidate 关系尚未核实。","",
     ...session.warnings.map(w=>`- 注意：${w}`),"","## 话题与互动"];

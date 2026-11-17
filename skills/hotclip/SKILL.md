@@ -40,7 +40,7 @@ Input: MP4 / MKV / MOV / FLV / TS, or audio-only (podcasts get an auto-generated
 
 先理解整场录播或用户要求结构化上下文时，调用 `structure_recording`。它生成直播背景、并行事件、弹幕关联、话题、兴趣点和对照表，不直接剪片。用 `read_recording_context` 按时间、episodeId 或 eventIds 回查，跟随 nextOffset 分页；不要把整场事件反复塞入模型。`candidate` 关联不能写成已确认事实；未匹配的弹幕请求保留缺失。视觉只在传入 `visualTimes` 时执行，未观察画面保持未知。详见 `docs/STRUCTURED_CONTEXT_WORKFLOW.md`。
 
-0. **用户的聊天自动切片默认流程**：优先调用 `clip_chat_video`，默认 Qwen3-ASR 1.7B、终末地/B站词库、本地音色聚类；字幕和话题校核固定 `gpt-6.1-terra` / `high`。需要视觉抽查时 `visualCheck: true`，固定 `gpt-6.1-sol` / `high`，配对比较源片与成片。字幕排版后去标点，内部断句稿保留；同步导出 SRT、`字幕与上下文对照.csv`、JSON 审计。无需另配 LLM API key，复用用户 Codex CLI 登录。详见 `docs/CHAT_CLIPPING.md`。读 `chat-job.json` 中的边界、时间、角色及视觉告警；不得把 needs-review 说成已人工听校。
+0. **用户的聊天自动切片默认流程**：优先调用 `clip_chat_video`，默认 Qwen3-ASR 1.7B、终末地/B站词库、本地音色聚类；字幕校核固定 `gpt-6.1-terra` / `high`，主分析及话题选择固定 `gpt-6.1-sol` / `high`。需要视觉抽查时 `visualCheck: true`，固定 `gpt-6.1-sol` / `high`，配对比较源片与成片。字幕排版后去标点，内部断句稿保留；同步导出 SRT、`字幕与上下文对照.csv`、JSON 审计。无需另配 LLM API key，复用用户 Codex CLI 登录。详见 `docs/CHAT_CLIPPING.md`。读 `chat-job.json` 中的边界、时间、角色及视觉告警；不得把 needs-review 说成已人工听校。
 
    **当前话题边界优先于说话人连续性**：主播回答完后转回游戏解说属于新话题，即使音色相同也排除。保留的是同一话题的反应，不是后面所有反应。音色聚类仅辅助语境判断，不等于已确认身份；声纹相似、游戏配音和叠音仍要标不确定。真实停顿不足时不能为了增加尾气口引入下一句。
 
