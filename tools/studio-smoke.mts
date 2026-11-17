@@ -129,12 +129,20 @@ try {
   const handleBox = (await handle.boundingBox())!;
   const handleMin = Number(await handle.getAttribute("min"));
   const handleMax = Number(await handle.getAttribute("max"));
-  const handleX = handleBox.x + 7 + ((2.5 - handleMin) / (handleMax - handleMin)) * (handleBox.width - 14);
+  const handleX =
+    handleBox.x +
+    7 +
+    ((2.5 - handleMin) / (handleMax - handleMin)) * (handleBox.width - 14);
   await page.mouse.move(handleX, handleBox.y + handleBox.height / 2);
   await page.mouse.down();
-  await page.mouse.move(handleX + 30, handleBox.y + handleBox.height / 2, { steps: 5 });
+  await page.mouse.move(handleX + 30, handleBox.y + handleBox.height / 2, {
+    steps: 5,
+  });
   await page.mouse.up();
-  assert.ok(Number(await handle.inputValue()) > 2.5, "native handle should drag");
+  assert.ok(
+    Number(await handle.inputValue()) > 2.5,
+    "native handle should drag",
+  );
   await page.getByRole("button", { name: "精确设置入点", exact: true }).click();
   await page.getByLabel("原片时间 · HH:MM:SS.mmm").fill("00:00:02.500");
   await page.getByRole("button", { name: "设置并跳转" }).click();
@@ -171,6 +179,27 @@ try {
     fullPage: true,
   });
   await page.getByRole("button", { name: "审核字幕", exact: true }).click();
+  const seekReview = async (sec: number) => {
+    await page
+      .getByRole("slider", { name: "切片播放位置" })
+      .evaluate((el, value) => {
+        const setter = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )!.set!;
+        setter.call(el, String(value));
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }, sec);
+    await expect
+      .poll(() => page.locator("video").evaluate((v) => !v.seeking))
+      .toBe(true);
+  };
+  await seekReview(5);
+  await expect(page.getByLabel("画面上的当前字幕")).toHaveValue("这是我的本声");
+  const chatBeforeTrim = await page
+    .locator("canvas")
+    .evaluate((c) => c.toDataURL());
   await page
     .getByRole("textbox", { name: "字幕 s1", exact: true })
     .fill("上舰啦，测试！");
@@ -183,12 +212,41 @@ try {
     page.getByRole("textbox", { name: "字幕 s1", exact: true }),
   ).toHaveValue("上舰啦测试");
   await expect(page.locator(".save-state")).toContainText("已保存");
+  // Regression: trimming an already reviewed clip must not reset manual timing.
+  const firstRow = page.locator(".subtitle-row").first();
+  await firstRow.locator("summary").click();
+  await firstRow.getByLabel("开始", { exact: true }).fill("00:00:02.900");
+  await firstRow.getByLabel("开始", { exact: true }).press("Enter");
+  await page.getByRole("button", { name: "调整切片范围", exact: true }).click();
+  await page.getByRole("button", { name: "精确设置入点", exact: true }).click();
+  await page.getByLabel("原片时间 · HH:MM:SS.mmm").fill("00:00:02.700");
+  await page.getByRole("button", { name: "设置并跳转" }).click();
+  await page.getByRole("button", { name: "更新切片", exact: true }).click();
+  await page.getByRole("button", { name: "审核字幕", exact: true }).click();
+  await firstRow.locator("summary").click();
+  await expect(firstRow.getByLabel("开始", { exact: true })).toHaveValue(
+    "00:00:02.900",
+  );
+  await seekReview(5);
+  await expect(page.getByLabel("画面上的当前字幕")).toHaveValue("这是我的本声");
+  await expect
+    .poll(() => page.locator("canvas").evaluate((c) => c.toDataURL()))
+    .toBe(chatBeforeTrim);
+  await seekReview(3.99);
+  await expect(page.getByLabel("画面上的当前字幕")).toHaveValue("上舰啦测试");
+  await seekReview(4.01);
+  await expect(page.getByLabel("画面上的当前字幕")).toHaveValue("这是我的本声");
   await page.screenshot({
     path: join(screenshots, "02-review.png"),
     fullPage: true,
   });
-  const reviewAxe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
-  assert.deepEqual(reviewAxe.violations.map(v => v.id), []);
+  const reviewAxe = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  assert.deepEqual(
+    reviewAxe.violations.map((v) => v.id),
+    [],
+  );
   await page.getByRole("button", { name: "导出设置", exact: true }).click();
   await page.getByRole("checkbox", { name: /渲染直播弹幕/ }).check();
   await page.screenshot({

@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 import { createRoot } from "react-dom/client";
 import {
   LuScissors,
@@ -22,6 +28,9 @@ import {
 } from "react-icons/lu";
 import {
   clipLines,
+  resizeClip,
+  editClipLine,
+  replaceClipCaptions,
   timecode,
   type StudioProject,
   type StudioDraft,
@@ -53,8 +62,9 @@ function useDraft(initial: StudioDraft, base: string) {
     setStatus("有未保存修改");
   }, []);
   const flush = useCallback(async () => {
-    if (flight.current) await flight.current;
-    if (saved.current === generation.current) return;
+    while (flight.current) await flight.current;
+    if (saved.current === generation.current)
+      return { ...current.current, revision: revision.current };
     const work = async () => {
       while (saved.current !== generation.current) {
         const target = generation.current,
@@ -81,6 +91,7 @@ function useDraft(initial: StudioDraft, base: string) {
     } finally {
       flight.current = null;
     }
+    return { ...current.current, revision: revision.current };
   }, [base]);
   useEffect(() => {
     const t = setTimeout(() => {
@@ -141,6 +152,12 @@ function Studio({ project }: { project: StudioProject }) {
     [subSearch, setSubSearch] = useState(""),
     [jobs, setJobs] = useState<StudioJob[]>([]),
     [exporting, setExporting] = useState(false);
+  const [aligning, setAligning] = useState(false),
+    [alignmentProgress, setAlignmentProgress] = useState({ done: 0, total: 0 });
+  const alignmentController = useRef<AbortController | null>(null);
+  const latestDraft = useRef(draft);
+  latestDraft.current = draft;
+  useEffect(() => () => alignmentController.current?.abort(), []);
   const player = useRef<PlayerHandle>(null),
     heading = useRef<HTMLHeadingElement>(null),
     previousPage = useRef(page);
@@ -202,28 +219,10 @@ function Studio({ project }: { project: StudioProject }) {
   const add = () => {
     if (!selection) return;
     const old = draft.clips.find((c) => c.id === editingId);
-    const subtitles = clipLines(
-      project.lines,
-      selection.startSec,
-      selection.endSec,
-    ).map((l) => {
-      const edited = old?.subtitles.find((s) => s.id === l.id);
-      return edited
-        ? {
-            ...l,
-            text: edited.text,
-            reviewed:
-              edited.reviewed &&
-              edited.startSec === l.startSec &&
-              edited.endSec === l.endSec,
-          }
-        : l;
-    });
-    const clip = {
+    const clip = resizeClip(project.lines, old, {
       ...selection,
       id: editingId ?? crypto.randomUUID(),
-      subtitles,
-    };
+    });
     change((d) => ({
       ...d,
       clips: editingId
@@ -246,19 +245,69 @@ function Studio({ project }: { project: StudioProject }) {
   };
   const updateLine = (id: string, patch: Partial<StudioLine>) => {
     if (!activeClip) return;
+    if (patch.startSec !== undefined || patch.endSec !== undefined) {
+      const line = activeClip.subtitles.find((l) => l.id === id)!;
+      const updated = { ...line, ...patch };
+      if (
+        activeClip.subtitles.some(
+          (l) =>
+            l.id !== id &&
+            l.startSec < updated.endSec - 0.001 &&
+            l.endSec > updated.startSec + 0.001,
+        )
+      ) {
+        setError("字幕时间不能与前后句重叠，请先调整相邻句");
+        return;
+      }
+    }
     change((d) => ({
       ...d,
       clips: d.clips.map((c) =>
-        c.id === activeClip.id
-          ? {
-              ...c,
-              subtitles: c.subtitles.map((l) =>
-                l.id === id ? { ...l, ...patch } : l,
-              ),
-            }
-          : c,
+        c.id === activeClip.id ? editClipLine(c, id, patch) : c,
       ),
     }));
+  };
+  const realign = async () => {
+    if (!activeClip || aligning) return;
+    player.current?.pause();
+    const snapshot = structuredClone(activeClip),
+      controller = new AbortController();
+    alignmentController.current = controller;
+    setAligning(true);
+    setError("");
+    setAlignmentProgress({ done: 0, total: 0 });
+    const timer = setInterval(() => {
+      void api<{ done: number; total: number }>(base + "/alignment")
+        .then(setAlignmentProgress)
+        .catch(() => {});
+    }, 1000);
+    try {
+      const { lines } = await api<{ lines: StudioLine[] }>(
+        base + "/alignment",
+        "POST",
+        { ...draft, clips: [snapshot] },
+        controller.signal,
+      );
+      const current = latestDraft.current.clips.find(
+        (c) => c.id === snapshot.id,
+      );
+      if (JSON.stringify(current) !== JSON.stringify(snapshot))
+        throw new Error("对齐期间此切片已修改，未覆盖你的编辑；请重新运行对齐");
+      change((d) => ({
+        ...d,
+        clips: d.clips.map((c) =>
+          c.id === snapshot.id ? replaceClipCaptions(c, lines) : c,
+        ),
+      }));
+      setMessage(`原声对齐完成 · ${lines.length} 条字幕 · 请回听确认`);
+    } catch (e) {
+      if (!controller.signal.aborted) setError(String(e));
+      else setMessage("已取消对齐，保留原字幕");
+    } finally {
+      clearInterval(timer);
+      setAligning(false);
+      alignmentController.current = null;
+    }
   };
   const moveClip = (id: string, direction: number) =>
     change((d) => {
@@ -289,8 +338,8 @@ function Studio({ project }: { project: StudioProject }) {
     setExporting(true);
     setError("");
     try {
-      await flush();
-      await api(base + "/jobs", "POST", draft);
+      const savedDraft = await flush();
+      await api(base + "/jobs", "POST", savedDraft);
       setJobs(await api(base + "/jobs"));
       setMessage("导出已开始，可以留在页面查看进度");
     } catch (e) {
@@ -299,6 +348,17 @@ function Studio({ project }: { project: StudioProject }) {
       setExporting(false);
     }
   };
+  const selectionPreview = useMemo(
+    () =>
+      selection && editingId
+        ? resizeClip(
+            project.lines,
+            draft.clips.find((c) => c.id === editingId),
+            { ...selection, id: editingId },
+          ).subtitles
+        : undefined,
+    [selection, editingId, draft.clips, project.lines],
+  );
   const playerView = (
     <Player
       key={`${page}-${page === 1 ? activeClip?.id : "source"}`}
@@ -307,6 +367,7 @@ function Studio({ project }: { project: StudioProject }) {
       ready={preview.status === "ready"}
       initialTime={time}
       clip={page === 1 ? activeClip : undefined}
+      linesOverride={page === 0 ? selectionPreview : undefined}
       settings={draft.settings}
       onTime={setTime}
       onEdit={
@@ -775,6 +836,41 @@ function Studio({ project }: { project: StudioProject }) {
                     </p>
                   </div>
                 </div>
+                <div className="review-tip">
+                  <div>
+                    <strong>按原声停顿重新断句</strong>
+                    <p>
+                      使用 Qwen
+                      字词强制对齐，结合中文词边界组织字幕。修改文字后可再次运行；不会重跑整场识别。
+                    </p>
+                    <button
+                      className="secondary"
+                      onClick={() => void realign()}
+                      disabled={aligning}
+                    >
+                      按原声对齐并重新断句
+                    </button>
+                    {aligning && (
+                      <>
+                        <progress
+                          aria-label="音频字幕对齐进度"
+                          max={Math.max(1, alignmentProgress.total)}
+                          value={alignmentProgress.done}
+                        />
+                        <span>
+                          {alignmentProgress.total
+                            ? `${alignmentProgress.done} / ${alignmentProgress.total} 段`
+                            : "正在加载对齐模型"}
+                        </span>
+                        <button
+                          onClick={() => alignmentController.current?.abort()}
+                        >
+                          取消对齐
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
                 <details className="evidence" open>
                   <summary>切片上下文</summary>
                   <p>
@@ -885,6 +981,15 @@ function Studio({ project }: { project: StudioProject }) {
                         <details>
                           <summary>原文与时间</summary>
                           <p className="raw-asr">ASR：{l.raw}</p>
+                          <p>
+                            {l.boundaryPartial
+                              ? "切点位于发音内部，请回听微调"
+                              : l.timingStatus === "aligned"
+                                ? "音频字词时间已对齐"
+                                : l.timingStatus === "manual"
+                                  ? "人工调整时间"
+                                  : "时间含估算或文字已修改，建议按原声对齐"}
+                          </p>
                           {l.correctionReason && (
                             <p className="correction-reason">
                               {l.correctionReason}

@@ -38,18 +38,29 @@ interface Props {
   ready: boolean;
   initialTime: number;
   clip?: StudioClip;
+  linesOverride?: StudioLine[];
   settings: StudioSettings;
   onTime: (time: number) => void;
   onEdit?: (line: StudioLine, text: string) => void;
 }
 export const Player = forwardRef<PlayerHandle, Props>(function Player(
-  { project, ready, initialTime, clip, settings, onTime, onEdit },
+  {
+    project,
+    ready,
+    initialTime,
+    clip,
+    linesOverride,
+    settings,
+    onTime,
+    onEdit,
+  },
   ref,
 ) {
   const video = useRef<HTMLVideoElement>(null),
     stage = useRef<HTMLDivElement>(null),
     canvas = useRef<HTMLCanvasElement>(null);
   const [playing, setPlaying] = useState(false),
+    [seeking, setSeeking] = useState(false),
     [time, setTime] = useState(initialTime),
     [volume, setVolume] = useState(0.8),
     [rate, setRate] = useState(1),
@@ -60,7 +71,7 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
   latest.current = { onTime, clip, chatEnabled, settings };
   const initial = useRef(initialTime);
   const audition = useRef<{ startSec: number; endSec: number } | null>(null);
-  const lines = clip?.subtitles ?? project.lines;
+  const lines = linesOverride ?? clip?.subtitles ?? project.lines;
   const active = lines.find((l) => l.startSec <= time && l.endSec > time);
   const cues = useMemo(
     () => scheduleChat(project.chat, settings.danmakuSize),
@@ -77,12 +88,15 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
   const seek = (sec: number) => {
     audition.current = null;
     if (video.current) {
-      video.current.currentTime = Math.max(
-        0,
-        Math.min(project.durationSec - 0.01, sec),
+      const bounded = Math.max(
+        clip?.startSec ?? 0,
+        Math.min(clip?.endSec ?? project.durationSec - 0.01, sec),
       );
-      setTime(sec);
-      onTime(sec);
+      initial.current = bounded;
+      video.current.currentTime = bounded;
+      // The video clock, not the requested slider position, owns every overlay.
+      setTime(video.current.currentTime);
+      onTime(video.current.currentTime);
     }
   };
   useImperativeHandle(ref, () => ({
@@ -103,24 +117,25 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
       drawn = "";
     const draw = () => {
       if (stopped) return;
-      const now = v.currentTime,
-        current = latest.current;
+      let now = v.currentTime;
+      const current = latest.current;
       const boundary = audition.current ?? current.clip;
       if (boundary && now >= boundary.endSec && !v.paused) {
         v.pause();
         v.currentTime = boundary.endSec;
+        now = boundary.endSec;
       }
-      if (Math.abs(now - last) >= 0.08) {
+      if (now !== last) {
         last = now;
         setTime(now);
         current.onTime(now);
       }
       const ctx = canvas.current?.getContext("2d");
-      const signature = `${now}:${current.chatEnabled}:${current.settings.danmakuSize}:${current.settings.danmakuOpacity}`;
+      const signature = `${now}:${v.seeking}:${current.chatEnabled}:${current.settings.danmakuSize}:${current.settings.danmakuOpacity}`;
       if (ctx && signature !== drawn) {
         drawn = signature;
         ctx.clearRect(0, 0, 1920, 1080);
-        if (current.chatEnabled) {
+        if (current.chatEnabled && !v.seeking) {
           ctx.font = `bold ${current.settings.danmakuSize}px "Microsoft YaHei", sans-serif`;
           ctx.textBaseline = "top";
           ctx.lineWidth = 3;
@@ -176,6 +191,20 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
           }}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
+          onSeeking={() => {
+            setSeeking(true);
+            if (video.current) {
+              setTime(video.current.currentTime);
+              onTime(video.current.currentTime);
+            }
+          }}
+          onSeeked={() => {
+            setSeeking(false);
+            if (video.current) {
+              setTime(video.current.currentTime);
+              onTime(video.current.currentTime);
+            }
+          }}
           onError={() => setError("视频读取失败，请检查预览准备状态后刷新")}
           onClick={toggle}
         >
@@ -205,6 +234,7 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
           </button>
         )}
         {captions &&
+          !seeking &&
           active &&
           (onEdit ? (
             <textarea
@@ -224,7 +254,8 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
             </div>
           ))}
         <span className="source-badge">
-          {clip ? "切片预览" : "原片"} <i /> {project.height}P
+          {seeking ? "定位画面…" : clip ? "切片预览" : "原片"} <i />{" "}
+          {project.height}P
         </span>
       </div>
       <div className="player-controls">

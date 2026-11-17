@@ -3,13 +3,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import {
-  readFile,
-  writeFile,
-  mkdir,
-  rename,
-  stat,
-} from "node:fs/promises";
+import { readFile, writeFile, mkdir, rename, stat } from "node:fs/promises";
 import { resolve, join, basename } from "node:path";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
 import {
@@ -21,6 +15,8 @@ import {
 } from "../shared/studio";
 import { runFfmpeg, serveFile } from "./media";
 import { renderClip } from "./render";
+import { attachWordTimings, segmentCaptions } from "./captions";
+import { alignCaptions } from "./align-captions";
 
 interface Loaded {
   root: string;
@@ -37,6 +33,7 @@ interface Loaded {
   thumbs: Map<number, Promise<string>>;
   thumbQueue: Promise<void>;
   draftLock: Promise<void>;
+  alignment: { busy: boolean; done: number; total: number };
 }
 const readJson = async (p: string) => JSON.parse(await readFile(p, "utf8"));
 async function atomicJson(file: string, value: unknown) {
@@ -117,7 +114,12 @@ export async function loadStudioProject(root: string): Promise<Loaded> {
         i.status !== "matched" ||
         !!i.bounds?.uncertainIds?.length,
     })),
-    lines,
+    lines: await readJson(join(root, "asr-raw.json"))
+      .then((asr) => segmentCaptions(attachWordTimings(lines, asr.segments)))
+      .catch((e) => {
+        if (e.code === "ENOENT") return lines;
+        throw e;
+      }),
     chat: danmaku.events
       .filter((e: any) => e.kind === "chat" && Number.isFinite(e.startSec))
       .map((e: any) => ({ id: e.id, startSec: e.startSec, text: e.text })),
@@ -150,6 +152,7 @@ export async function loadStudioProject(root: string): Promise<Loaded> {
     thumbs: new Map(),
     thumbQueue: Promise.resolve(),
     draftLock: Promise.resolve(),
+    alignment: { busy: false, done: 0, total: 0 },
   };
   if (await exists(previewFile))
     loaded.preview = { status: "ready", progress: 1 };
@@ -265,6 +268,46 @@ export async function startStudio(
           return;
         }
         const route = parts[3];
+        if (route === "alignment" && req.method === "GET") {
+          send(res, 200, p.alignment);
+          return;
+        }
+        if (route === "alignment" && req.method === "POST") {
+          const value = await body(req);
+          validateDraft(value, p.project.durationSec);
+          if (
+            value.clips.length !== 1 ||
+            value.clips[0].endSec - value.clips[0].startSec > 1800
+          )
+            throw new Error("请选择一个不超过 30 分钟的切片");
+          if (p.alignment.busy) {
+            send(res, 409, { error: "音频对齐正在进行" });
+            return;
+          }
+          p.alignment = { busy: true, done: 0, total: 0 };
+          const controller = new AbortController();
+          controllers.add(controller);
+          res.on("close", () => {
+            if (!res.writableEnded) controller.abort();
+          });
+          try {
+            const lines = await alignCaptions(
+              p.source,
+              p.root,
+              value.clips[0],
+              p.project.durationSec,
+              controller.signal,
+              (done, total) => {
+                p.alignment = { busy: true, done, total };
+              },
+            );
+            send(res, 200, { lines });
+          } finally {
+            p.alignment.busy = false;
+            controllers.delete(controller);
+          }
+          return;
+        }
         if (!route && req.method === "GET") {
           send(res, 200, p.project);
           return;
@@ -479,6 +522,7 @@ export async function startStudio(
         send(res, 404, { error: "页面不存在，请运行 pnpm studio:build" });
         return;
       }
+      if (file.endsWith(".html")) res.setHeader("Cache-Control", "no-store");
       await serveFile(
         req,
         res,

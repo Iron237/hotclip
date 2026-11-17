@@ -3,9 +3,11 @@ export async function api<T>(
   path: string,
   method = "GET",
   value?: unknown,
+  signal?: AbortSignal,
 ): Promise<T> {
   const response = await fetch(path, {
     method,
+    signal,
     headers:
       method === "GET"
         ? {}

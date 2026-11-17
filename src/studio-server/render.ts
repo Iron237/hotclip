@@ -11,7 +11,10 @@ import {
 } from "../shared/studio";
 import { runFfmpeg } from "./media";
 
-const assTime = (s: number) => timecode(s, true).slice(1, -1);
+const assTime = (s: number) =>
+  timecode(s, true)
+    .slice(0, -1)
+    .replace(/^0(?=\d:)/, "");
 // ASS override syntax must never be accepted from subtitles or live chat.
 export const assText = (s: string) =>
   s

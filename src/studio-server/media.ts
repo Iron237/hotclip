@@ -83,7 +83,8 @@ export async function serveFile(
   }
   res.setHeader("Content-Type", type);
   res.setHeader("Accept-Ranges", "bytes");
-  res.setHeader("Cache-Control", "private, max-age=3600");
+  if (!res.hasHeader("Cache-Control"))
+    res.setHeader("Cache-Control", "private, max-age=3600");
   if (download)
     res.setHeader(
       "Content-Disposition",
