@@ -371,12 +371,14 @@ export function Timeline({
                           ((e.clientX - g.x) / g.width) *
                             g.span *
                             (e.shiftKey ? 0.1 : 1);
-                        change(
-                          key,
-                          Math.round(
-                            Math.max(low, Math.min(high, value)) * 1000,
-                          ) / 1000,
-                        );
+                        const ordered =
+                          key === "startSec"
+                            ? Math.min(value, selection.endSec - 0.1)
+                            : Math.max(value, selection.startSec + 0.1);
+                        // Integrate deltas so pressing/releasing Shift mid-drag never jumps back.
+                        g.value = Math.max(low, Math.min(high, ordered));
+                        g.x = e.clientX;
+                        change(key, Math.round(g.value * 1000) / 1000);
                       }
                     }}
                     onPointerUp={(e) => {

@@ -3,6 +3,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useId,
   useRef,
   useState,
 } from "react";
@@ -75,6 +76,7 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
       return true;
     }
   });
+  const shortcutsId = useId();
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -435,8 +437,9 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
       </div>
       <details className="keyboard-help">
         <summary>播放快捷键</summary>
-        <label>
+        <label htmlFor={shortcutsId}>
           <input
+            id={shortcutsId}
             type="checkbox"
             checked={shortcuts}
             onChange={(e) => setShortcuts(e.target.checked)}

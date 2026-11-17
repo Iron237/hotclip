@@ -63,6 +63,26 @@ try {
   assert.ok(
     Math.abs(Number(await startHandle.inputValue()) - changed - 0.001) < 0.0001,
   );
+  const beforeModeSwitch = Number(await startHandle.inputValue());
+  const nextX =
+    bounds.x +
+    ((beforeModeSwitch - zoomed[0]) / (zoomed[1] - zoomed[0])) * bounds.width;
+  await page.mouse.move(nextX, y);
+  await page.mouse.down();
+  await page.mouse.move(nextX + 20, y, { steps: 4 });
+  const coarse = Number(await startHandle.inputValue());
+  await page.keyboard.down("Shift");
+  await page.mouse.move(nextX + 40, y, { steps: 4 });
+  const fine = Number(await startHandle.inputValue());
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  assert.ok(
+    fine > coarse,
+    "entering fine mode mid-drag must not jump backward",
+  );
+  assert.ok(
+    Math.abs(fine - coarse - (coarse - beforeModeSwitch) * 0.1) < 0.003,
+  );
   const pan = page.getByRole("button", { name: "平移时间轴", exact: true });
   await pan.focus();
   await page.keyboard.press("ArrowRight");

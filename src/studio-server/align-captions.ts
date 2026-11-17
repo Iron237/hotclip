@@ -17,6 +17,26 @@ import { segmentCaptions } from "./captions";
 import { rebuildWords } from "../shared/edit-transcript";
 import { refineWordTimings } from "../core/align";
 
+export function captionAlignmentGroups(input: StudioLine[]): StudioLine[][] {
+  const groups: StudioLine[][] = [];
+  for (const l of input) {
+    if (l.endSec - l.startSec > 60)
+      throw new Error("单句超过 60 秒，请先缩小字幕时间范围");
+    const prev = groups.at(-1);
+    if (
+      prev &&
+      (l.speakerRole ?? "unknown") === (prev[0].speakerRole ?? "unknown") &&
+      (l.speakerBasis ?? "unclassified") ===
+        (prev[0].speakerBasis ?? "unclassified") &&
+      l.endSec - prev[0].startSec <= 24 &&
+      l.startSec - prev.at(-1)!.endSec < 1.5
+    )
+      prev.push(l);
+    else groups.push([l]);
+  }
+  return groups;
+}
+
 export async function alignCaptions(
   source: string,
   root: string,
@@ -33,20 +53,7 @@ export async function alignCaptions(
   const input = clip.subtitles
     .filter((l) => l.text.trim())
     .sort((a, b) => a.startSec - b.startSec);
-  const groups: StudioLine[][] = [];
-  for (const l of input) {
-    if (l.endSec - l.startSec > 60)
-      throw new Error("单句超过 60 秒，请先缩小字幕时间范围");
-    const prev = groups.at(-1);
-    if (
-      prev &&
-      (l.speakerRole ?? "unknown") === (prev[0].speakerRole ?? "unknown") &&
-      l.endSec - prev[0].startSec <= 24 &&
-      l.startSec - prev.at(-1)!.endSec < 1.5
-    )
-      prev.push(l);
-    else groups.push([l]);
-  }
+  const groups = captionAlignmentGroups(input);
   const cache = join(root, "studio", "alignment-cache");
   await mkdir(cache, { recursive: true });
   const info = await stat(source),
@@ -75,7 +82,7 @@ export async function alignCaptions(
     const hash = createHash("sha256")
       .update(
         JSON.stringify([
-          "audio-captions-v3",
+          "audio-captions-v4-speaker-evidence",
           health.revision,
           source,
           info.size,
@@ -154,6 +161,9 @@ export async function alignCaptions(
               .join("；"),
             uncertain: group.some((l) => l.uncertain),
             sourceIds: group.flatMap((l) => l.sourceIds ?? [l.id]),
+            speakerReason: [
+              ...new Set(group.map((l) => l.speakerReason).filter(Boolean)),
+            ].join("；"),
             words: refined.words.map((w) => ({
               ...w,
               startSec: w.startSec + start,

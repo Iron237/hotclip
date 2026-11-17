@@ -19,6 +19,7 @@ import { makeAss } from "../../studio-server/render";
 import { segmentCaptions } from "../../studio-server/captions";
 import { applySpeakerRoles } from "../../studio-server/caption-speakers";
 import type { StudioLine, StudioProject } from "../../shared/studio";
+import { captionAlignmentGroups } from "../../studio-server/align-captions";
 describe("studio boundary and media contracts", () => {
   const cue = (
     id: string,
@@ -50,6 +51,24 @@ describe("studio boundary and media contracts", () => {
     expect(ass).toContain("主播本人读游戏台词");
     expect(ass).not.toContain("角色对白");
     expect(ass).not.toContain("叠音待判");
+  });
+  it("does not spread a manual speaker decision into adjacent inferred speech during audio alignment", () => {
+    const lines: StudioLine[] = [
+      { ...cue("a", 1, 2, "人工确认主播"), speakerBasis: "manual" },
+      {
+        ...cue("b", 2, 3, "声纹找回短回应"),
+        speakerBasis: "voiceprint-context",
+      },
+      { ...cue("c", 3, 4, "同类证据继续"), speakerBasis: "voiceprint-context" },
+      {
+        ...cue("d", 4, 5, "游戏插话"),
+        speakerRole: "game",
+        speakerBasis: "voiceprint-context",
+      },
+    ];
+    expect(
+      captionAlignmentGroups(lines).map((g) => g.map((l) => l.id)),
+    ).toEqual([["a"], ["b", "c"], ["d"]]);
   });
   it("never merges host and game speech across touching ASR cues", () => {
     const lines = [

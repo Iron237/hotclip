@@ -1,5 +1,7 @@
 import { chromium, expect } from "@playwright/test";
-import { writeFile } from "node:fs/promises";
+import { writeFile, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { subtitleFile } from "../src/shared/studio";
 import assert from "node:assert/strict";
 const base = process.argv[2] ?? "http://127.0.0.1:8767";
 const registry = await (await fetch(base + "/api/projects")).json();
@@ -16,8 +18,28 @@ const game = project.lines.find(
 const unknown = project.lines.find(
   (l: any) => l.speakerRole === "unknown" && l.endSec - l.startSec > 0.8,
 );
+const baseline = JSON.parse(
+  await readFile(
+    join(
+      project.outputDirectory,
+      "..",
+      "voiceprints",
+      "semantic-baseline.json",
+    ),
+    "utf8",
+  ),
+);
+const formerlyUnknown = new Set(
+  baseline.items.filter((l: any) => l.role === "unknown").map((l: any) => l.id),
+);
+const recovered = project.lines.find(
+  (l: any) =>
+    l.speakerRole === "host" &&
+    l.speakerBasis === "voiceprint-context" &&
+    (l.sourceIds ?? [l.id]).some((id: string) => formerlyUnknown.has(id)),
+);
 assert.ok(
-  host && game && unknown,
+  host && game && unknown && recovered,
   "requires completed real-source role analysis",
 );
 const browser = await chromium.launch({ channel: "msedge", headless: true });
@@ -31,7 +53,7 @@ try {
       timeout: 30000,
     })
     .toBeGreaterThanOrEqual(2);
-  for (const cue of [game, unknown, host]) {
+  for (const cue of [game, unknown, host, recovered]) {
     const sec = (cue.startSec + cue.endSec) / 2;
     await page
       .getByRole("slider", { name: "全片播放位置" })
@@ -62,8 +84,12 @@ try {
   const vtt = await page
     .locator("track")
     .evaluate(async (t) => fetch(t.src).then((r) => r.text()));
-  assert.ok(vtt.includes(host.text));
-  assert.ok(!vtt.includes(game.text));
+  const cueBody = (l: any) =>
+    subtitleFile([l], 0, true).split("\n").slice(3).join("\n").trim();
+  assert.ok(vtt.includes(cueBody(host)));
+  assert.ok(vtt.includes(cueBody(recovered)));
+  assert.ok(!vtt.includes(cueBody(game)));
+  assert.ok(!vtt.includes(cueBody(unknown)));
   const after = await (
     await fetch(base + "/api/projects/" + project.id)
   ).json();
@@ -73,7 +99,7 @@ try {
     JSON.stringify(
       {
         success: true,
-        examples: [host, game, unknown].map(
+        examples: [host, game, unknown, recovered].map(
           ({ text, startSec, speakerRole }: any) => ({
             text,
             startSec,
