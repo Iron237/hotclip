@@ -40,6 +40,7 @@ export async function alignCaptions(
     const prev = groups.at(-1);
     if (
       prev &&
+      (l.speakerRole ?? "unknown") === (prev[0].speakerRole ?? "unknown") &&
       l.endSec - prev[0].startSec <= 24 &&
       l.startSec - prev.at(-1)!.endSec < 1.5
     )
@@ -53,6 +54,12 @@ export async function alignCaptions(
   progress(0, groups.length);
   for (const [index, group] of groups.entries()) {
     signal.throwIfAborted();
+    // Excluded dialogue remains available for audit; never align it into host cues.
+    if (group[0].speakerRole !== "host") {
+      result.push(...group);
+      progress(index + 1, groups.length);
+      continue;
+    }
     const start = Math.max(0, group[0].startSec - 0.3),
       end = Math.min(duration, group.at(-1)!.endSec + 0.3);
     const normalized = (s: string) =>

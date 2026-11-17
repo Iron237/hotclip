@@ -74,6 +74,7 @@ await writeFile(
   JSON.stringify([
     {
       id: "s1",
+      speakerRole: "host",
       startSec: 2,
       endSec: 4,
       raw: "上剑啦，",
@@ -83,12 +84,33 @@ await writeFile(
     },
     {
       id: "s2",
+      speakerRole: "host",
       startSec: 4,
       endSec: 7,
       raw: "这是我的本身。",
       text: "这是我的本声",
       uncertain: false,
       correctionReason: "",
+    },
+    {
+      id: "game1",
+      startSec: 7,
+      endSec: 7.3,
+      raw: "这是游戏角色对白",
+      text: "这是游戏角色对白",
+      uncertain: false,
+      correctionReason: "",
+      speakerRole: "game",
+    },
+    {
+      id: "unknown1",
+      startSec: 7.3,
+      endSec: 8,
+      raw: "归属尚不明确",
+      text: "归属尚不明确",
+      uncertain: false,
+      correctionReason: "",
+      speakerRole: "unknown",
     },
   ]),
 );
@@ -236,6 +258,23 @@ try {
   await expect(page.getByLabel("画面上的当前字幕")).toHaveValue("上舰啦测试");
   await seekReview(4.01);
   await expect(page.getByLabel("画面上的当前字幕")).toHaveValue("这是我的本声");
+  await seekReview(7.1);
+  await expect(page.getByLabel("画面上的当前字幕")).toHaveCount(0);
+  await expect(page.locator(".subtitle-row")).toHaveCount(2);
+  await page.getByLabel(/显示排除与待判句/).check();
+  await expect(page.locator(".subtitle-row")).toHaveCount(4);
+  const gameRow = page
+    .locator(".subtitle-row")
+    .filter({
+      has: page.getByRole("textbox", { name: "字幕 game1", exact: true }),
+    });
+  await gameRow.getByRole("radio", { name: "主播", exact: true }).check();
+  await expect(page.getByLabel("画面上的当前字幕")).toHaveValue(
+    "这是游戏角色对白",
+  );
+  await gameRow.getByRole("radio", { name: "游戏", exact: true }).check();
+  await expect(page.getByLabel("画面上的当前字幕")).toHaveCount(0);
+  await page.getByLabel(/显示排除与待判句/).uncheck();
   await page.screenshot({
     path: join(screenshots, "02-review.png"),
     fullPage: true,
@@ -320,6 +359,8 @@ try {
   const srt = await srtResponse.text();
   assert.ok(srt.includes("上舰啦测试"));
   assert.ok(!srt.includes("，"));
+  assert.ok(!srt.includes("这是游戏角色对白"));
+  assert.ok(!srt.includes("归属尚不明确"));
   const videoArtifact = jobs[0].files.find((f: any) => f.name.endsWith(".mp4"));
   assert.ok((await fetch(base + videoArtifact.url, { method: "HEAD" })).ok);
   const outputPath = join(

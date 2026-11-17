@@ -97,6 +97,8 @@ export function segmentCaptions(lines: StudioLine[]): StudioLine[] {
     if (
       prev &&
       (u.word.startSec - prev.word.endSec >= 0.65 ||
+        (u.line.speakerRole ?? "unknown") !==
+          (prev.line.speakerRole ?? "unknown") ||
         u.word.startSec < prev.word.startSec ||
         current.length >= 400)
     ) {
@@ -181,6 +183,15 @@ export function segmentCaptions(lines: StudioLine[]): StudioLine[] {
         words: group.map((u) => ({ ...u.word })),
         timingStatus: uncertainTiming ? "needs-alignment" : "aligned",
         reviewed: false,
+        speakerRole: first.line.speakerRole ?? "unknown",
+        speakerBasis: sources.every((l) => l.speakerBasis === "manual")
+          ? "manual"
+          : sources.some((l) => l.speakerBasis === "semantic-context")
+            ? "semantic-context"
+            : "unclassified",
+        speakerReason: [
+          ...new Set(sources.map((l) => l.speakerReason).filter(Boolean)),
+        ].join("；"),
       });
       i = j;
     }

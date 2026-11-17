@@ -5,6 +5,10 @@ import {
   segmentCaptions,
 } from "../src/studio-server/captions";
 import { alignCaptions } from "../src/studio-server/align-captions";
+import {
+  applySpeakerRoles,
+  loadSpeakerRoles,
+} from "../src/studio-server/caption-speakers";
 import { clipLines } from "../src/shared/studio";
 const root = process.argv[2];
 if (!root)
@@ -15,7 +19,12 @@ const original = JSON.parse(
 );
 const asr = JSON.parse(await readFile(join(root, "asr-raw.json"), "utf8"));
 const rebuilt = segmentCaptions(attachWordTimings(original, asr.segments));
-const selected = clipLines(original, 10118.3, 10129.7);
+const roles = await loadSpeakerRoles(root, original);
+const selected = clipLines(
+  original.map((l: any) => applySpeakerRoles(l, roles)),
+  10118.3,
+  10129.7,
+);
 const aligned = await alignCaptions(
   source.videoPath,
   root,

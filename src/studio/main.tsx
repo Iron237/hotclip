@@ -31,6 +31,7 @@ import {
   resizeClip,
   editClipLine,
   replaceClipCaptions,
+  hostCaptionLines,
   timecode,
   type StudioProject,
   type StudioDraft,
@@ -149,6 +150,7 @@ function Studio({ project }: { project: StudioProject }) {
       draft.clips[0]?.id ?? null,
     ),
     [onlyUncertain, setOnlyUncertain] = useState(false),
+    [showExcluded, setShowExcluded] = useState(false),
     [subSearch, setSubSearch] = useState(""),
     [jobs, setJobs] = useState<StudioJob[]>([]),
     [exporting, setExporting] = useState(false);
@@ -269,6 +271,11 @@ function Studio({ project }: { project: StudioProject }) {
   };
   const realign = async () => {
     if (!activeClip || aligning) return;
+    if (!hostCaptionLines(activeClip.subtitles).length) {
+      setError("此切片尚无主播字幕，请打开“显示排除与待判句”回听并指定说话人");
+      setShowExcluded(true);
+      return;
+    }
     player.current?.pause();
     const snapshot = structuredClone(activeClip),
       controller = new AbortController();
@@ -323,7 +330,9 @@ function Studio({ project }: { project: StudioProject }) {
   const total = draft.clips.reduce((sum, c) => sum + c.endSec - c.startSec, 0),
     doubtful = draft.clips.reduce(
       (sum, c) =>
-        sum + c.subtitles.filter((l) => l.uncertain && !l.reviewed).length,
+        sum +
+        hostCaptionLines(c.subtitles).filter((l) => l.uncertain && !l.reviewed)
+          .length,
       0,
     );
   const filtered = project.interests.filter(
@@ -698,8 +707,13 @@ function Studio({ project }: { project: StudioProject }) {
                               {timecode(c.endSec, true)}
                             </p>
                             <small>
-                              {c.subtitles.length} 条字幕 ·{" "}
-                              {c.subtitles.filter((l) => l.reviewed).length}{" "}
+                              {hostCaptionLines(c.subtitles).length} 条主播字幕
+                              ·{" "}
+                              {
+                                hostCaptionLines(c.subtitles).filter(
+                                  (l) => l.reviewed,
+                                ).length
+                              }{" "}
                               条已核
                             </small>
                           </div>
@@ -794,13 +808,25 @@ function Studio({ project }: { project: StudioProject }) {
                         </div>
                         <strong>{c.title}</strong>
                         <small>
-                          {c.subtitles.filter((l) => l.reviewed).length} /{" "}
-                          {c.subtitles.length} 条已核
+                          {
+                            hostCaptionLines(c.subtitles).filter(
+                              (l) => l.reviewed,
+                            ).length
+                          }{" "}
+                          / {hostCaptionLines(c.subtitles).length}{" "}
+                          条主播字幕已核
                         </small>
                         <progress
                           aria-label={`${c.title} 校核进度`}
-                          max={Math.max(1, c.subtitles.length)}
-                          value={c.subtitles.filter((l) => l.reviewed).length}
+                          max={Math.max(
+                            1,
+                            hostCaptionLines(c.subtitles).length,
+                          )}
+                          value={
+                            hostCaptionLines(c.subtitles).filter(
+                              (l) => l.reviewed,
+                            ).length
+                          }
                         />
                       </button>
                     </li>
@@ -832,7 +858,7 @@ function Studio({ project }: { project: StudioProject }) {
                   <div>
                     <strong>点击画面字幕，直接编辑</strong>
                     <p>
-                      编辑时自动暂停。右侧可调整时间、回听原声与确认校核；导出字幕会自动去除句读标点。
+                      只显示主播发言，游戏对白和归属待判句不进入字幕。右侧可回听并修改归属；主播本人读弹幕、念台词仍算主播。
                     </p>
                   </div>
                 </div>
@@ -905,7 +931,7 @@ function Studio({ project }: { project: StudioProject }) {
                 <div className="section-heading">
                   <h2>字幕列表</h2>
                   <span className="muted">
-                    {activeClip.subtitles.length} 条
+                    {hostCaptionLines(activeClip.subtitles).length} 条主播字幕
                   </span>
                 </div>
                 <label className="search-box">
@@ -926,10 +952,30 @@ function Studio({ project }: { project: StudioProject }) {
                   />
                   只看待核疑点
                 </label>
+                <label className="check-row" htmlFor="show-excluded-captions">
+                  <input
+                    id="show-excluded-captions"
+                    name="show-excluded-captions"
+                    type="checkbox"
+                    checked={showExcluded}
+                    onChange={(e) => setShowExcluded(e.target.checked)}
+                  />
+                  显示排除与待判句（
+                  {activeClip.subtitles.length -
+                    hostCaptionLines(activeClip.subtitles).length}
+                  ）
+                </label>
                 <ol className="subtitle-list">
+                  {!showExcluded &&
+                    !hostCaptionLines(activeClip.subtitles).length && (
+                      <li className="muted">
+                        尚无主播字幕，请勾选上方“显示排除与待判句”进行归属校核
+                      </li>
+                    )}
                   {activeClip.subtitles
                     .filter(
                       (l) =>
+                        (showExcluded || l.speakerRole === "host") &&
                         (!onlyUncertain || (l.uncertain && !l.reviewed)) &&
                         `${l.text} ${l.raw}`.includes(subSearch),
                     )
@@ -978,9 +1024,48 @@ function Studio({ project }: { project: StudioProject }) {
                             }
                           />
                         </label>
+                        <fieldset className="speaker-role">
+                          <legend>
+                            说话人
+                            {l.speakerRole !== "host" ? " · 不进入字幕" : ""}
+                          </legend>
+                          {(
+                            [
+                              ["host", "主播"],
+                              ["game", "游戏"],
+                              ["unknown", "待判"],
+                            ] as const
+                          ).map(([role, label]) => (
+                            <label htmlFor={`role-${l.id}-${role}`} key={role}>
+                              <input
+                                id={`role-${l.id}-${role}`}
+                                name={`role-${l.id}`}
+                                type="radio"
+                                value={role}
+                                checked={(l.speakerRole ?? "unknown") === role}
+                                onChange={() =>
+                                  updateLine(l.id, {
+                                    speakerRole: role,
+                                    reviewed: false,
+                                  })
+                                }
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </fieldset>
                         <details>
                           <summary>原文与时间</summary>
                           <p className="raw-asr">ASR：{l.raw}</p>
+                          <p>
+                            归属：
+                            {l.speakerBasis === "manual"
+                              ? "人工指定"
+                              : l.speakerBasis === "semantic-context"
+                                ? "上下文推断（未声纹确认）"
+                                : "尚未分类"}{" "}
+                            {l.speakerReason}
+                          </p>
                           <p>
                             {l.boundaryPartial
                               ? "切点位于发音内部，请回听微调"
@@ -1169,8 +1254,10 @@ function Studio({ project }: { project: StudioProject }) {
                 </div>
                 <label className="setting-toggle">
                   <span>
-                    <strong>将字幕压制到画面</strong>
-                    <small>使用审核后的文字，自动去除句读标点</small>
+                    <strong>将主播字幕压制到画面</strong>
+                    <small>
+                      仅保留标为主播的句子；游戏和待判句不写入画面或 SRT
+                    </small>
                   </span>
                   <input
                     type="checkbox"
@@ -1222,6 +1309,31 @@ function Studio({ project }: { project: StudioProject }) {
                     />
                   </label>
                 </div>
+                <p className="muted">
+                  本次共{" "}
+                  {draft.clips.reduce(
+                    (n, c) => n + hostCaptionLines(c.subtitles).length,
+                    0,
+                  )}{" "}
+                  条主播字幕，
+                  {draft.clips.reduce(
+                    (n, c) =>
+                      n +
+                      c.subtitles.filter((l) => l.speakerRole === "game")
+                        .length,
+                    0,
+                  )}{" "}
+                  条游戏对白已排除，
+                  {draft.clips.reduce(
+                    (n, c) =>
+                      n +
+                      c.subtitles.filter(
+                        (l) => !l.speakerRole || l.speakerRole === "unknown",
+                      ).length,
+                    0,
+                  )}{" "}
+                  条归属待判暂不写入字幕。
+                </p>
                 <p className="muted">
                   预览弹幕开关只影响播放器；这里决定是否把弹幕永久压进视频。密集弹幕按轨道容量限流。
                 </p>

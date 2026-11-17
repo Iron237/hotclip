@@ -18,6 +18,13 @@ export interface StudioLine {
   sourceIds?: string[];
   timingStatus?: "aligned" | "needs-alignment" | "manual";
   boundaryPartial?: boolean;
+  speakerRole?: "host" | "game" | "unknown";
+  speakerBasis?: "semantic-context" | "manual" | "unclassified";
+  speakerReason?: string;
+}
+/** Missing attribution is not permission to display game dialogue. */
+export function hostCaptionLines(lines: StudioLine[]): StudioLine[] {
+  return lines.filter((l) => l.speakerRole === "host");
 }
 export interface StudioInterest {
   id: string;
@@ -248,6 +255,13 @@ export function editClipLine(
     return {
       ...l,
       ...changes,
+      ...(changes.speakerRole !== undefined
+        ? {
+            speakerBasis: "manual" as const,
+            speakerReason: "人工指定字幕声音来源",
+            reviewed: false,
+          }
+        : {}),
       ...(changedText || changedTime
         ? {
             words: undefined,
@@ -424,6 +438,11 @@ export function validateDraft(
       sourceIds.add(l.id);
     }
     for (const l of [...c.subtitles, ...(c.subtitleSource ?? [])]) {
+      if (
+        l.speakerRole !== undefined &&
+        !["host", "game", "unknown"].includes(l.speakerRole)
+      )
+        throw new Error("字幕说话人类型无效");
       if (l.words !== undefined) {
         if (!Array.isArray(l.words) || l.words.length > 4000)
           throw new Error("字词时间格式无效");

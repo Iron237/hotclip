@@ -1,6 +1,7 @@
 import { readFile,writeFile,mkdir,readdir,stat } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { classifyCaptionSpeakers } from "../src/core/caption-speaker-review";
 import { segmentWords } from "../src/core/transcribe/segment";
 import { checkDomainLexicon } from "../src/core/domain-lexicon";
 import { CHAT_LEXICONS,CHAT_MODELS,comparisonCsv,withoutPunctuation } from "../src/core/chat-review";
@@ -90,5 +91,6 @@ try {
  await save("reviewed-lines.json",lines);await save("scans.json",scans);
  await writeFile(join(work,"ASR与上下文对照.csv"),comparisonCsv(lines.map((s,i)=>({事件ID:s.id,开始秒:s.startSec,结束秒:s.endSec,原始ASR:s.raw,校核稿:s.text,无标点字幕:withoutPunctuation(s.text),修改依据:s.correctionReason,待核:s.uncertain?"是":"否",上文:lines[i-1]?.text??"",下文:lines[i+1]?.text??""}))),"utf8");
  await save("scan-complete.json",{models:CHAT_MODELS,durationSec:duration,blocks:scans.length,segments:lines.length,candidates:scans.flatMap(s=>s.candidates).length,chatEvents:chat.events.length});
- console.log("Full transcript scan complete; candidate refinement remains.");
+ await classifyCaptionSpeakers(root);
+ console.log("Full transcript and speaker attribution complete; candidate refinement remains.");
 }catch(error){await save(correctionsOnly?"correction-error.json":"error.json",{error:String(error),at:new Date().toISOString()});throw error;}

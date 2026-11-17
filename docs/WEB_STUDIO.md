@@ -81,6 +81,20 @@ pnpm studio:test
 前端遵循 `modern-web-guidance` 的 `slider`、`accessibility`、`forms`：原生 range 保留键盘行为、分开书写各浏览器滑块伪元素、使用 CSS 变量传入百分比避免对新 `attr()`/`progress()` 的硬依赖；原生 dialog 管理焦点；分步导航保留草稿，原生表单与可见标签、错误提示和服务端验证配合。
 
 
+## 只保留主播字幕
+
+播放器叠加字幕、原生 WebVTT、ASS 压制和 SRT 使用同一规则：只显示 `speakerRole=host`。游戏对白 `game` 和归属不明 `unknown`（含未分类）默认不显示；源录播的游戏声音不做静音或分离。主播自己读弹幕、念台词、模仿角色仍属于主播。
+
+审核页默认只列主播字幕，勾选“显示排除与待判句”可回听其他句子，通过原生单选框改为主播、游戏或待判。人工归属随草稿保存，重新断句、修改切片边界和刷新后保留。跨说话人来源不合并字幕，音频强制对齐只处理主播句，排除句保留作上下文证据。CSV 增加说话人、是否进入字幕和归属依据列。
+
+全片审阅工作流末尾自动运行 Sol 6.1 high 的逐句归属。对已有分析目录可执行：
+
+```powershell
+pnpm exec tsx tools/classify-caption-speakers.mts "D:/AI/hotclip-runs/full-20261116"
+```
+
+结果在 `studio/speaker-roles.json`，带原始审核稿哈希，只有内容匹配时才应用。模型结果必须逐 ID 完整覆盖，缺漏或重复会拒绝。当前归属依据是上下文，**不是声纹确认**；混音、主播朗读与游戏角色发声无法确定时默认隐藏并待判。判断有误可人工恢复，不删原始转写。新生成角色结果后需重启 Studio 加载。
+
 ## 同步修复与回归
 
 2026-11-18 的排查和完整验证记录见 [STUDIO_SYNC_REVIEW.md](STUDIO_SYNC_REVIEW.md)。

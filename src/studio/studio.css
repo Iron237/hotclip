@@ -2340,3 +2340,25 @@ fieldset > p {
     scroll-behavior: auto !important;
   }
 }
+.speaker-role {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #3b475a;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+.speaker-role legend {
+  padding-inline: 0.25rem;
+  color: #b9c6d9;
+}
+.speaker-role label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2rem;
+  margin-inline-end: 0.6rem;
+  cursor: pointer;
+}
+.speaker-role input {
+  accent-color: #ff9068;
+}

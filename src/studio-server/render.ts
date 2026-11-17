@@ -5,6 +5,7 @@ import {
   scheduleChat,
   subtitleFile,
   timecode,
+  hostCaptionLines,
   type StudioClip,
   type StudioProject,
   type StudioSettings,
@@ -33,7 +34,7 @@ export function makeAss(
   const head = `[Script Info]\nScriptType: v4.00+\nPlayResX: 1920\nPlayResY: 1080\nWrapStyle: 0\nScaledBorderAndShadow: yes\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Caption,Microsoft YaHei,48,&H00FFFFFF,&H00FFFFFF,&H00111111,&H80000000,-1,0,0,0,100,100,0,0,1,2.5,1,2,80,80,54,1\nStyle: Chat,Microsoft YaHei,${settings.danmakuSize},&H${alpha}FFFFFF,&H00FFFFFF,&H${alpha}111111,&H80000000,-1,0,0,0,100,100,0,0,1,1.5,0,7,0,0,0,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n`;
   const rows: string[] = [];
   if (settings.burnSubtitles)
-    for (const l of clip.subtitles)
+    for (const l of hostCaptionLines(clip.subtitles))
       if (l.text.trim())
         rows.push(
           `Dialogue: 1,${assTime(l.startSec - clip.startSec)},${assTime(l.endSec - clip.startSec)},Caption,,0,0,0,,${assText(stripCaptionPunctuation(l.text))}`,
@@ -135,7 +136,7 @@ export async function renderClip(
   await rename(join(dir, "render.partial.mp4"), join(dir, files[0]));
   await writeFile(
     join(dir, files[1]),
-    subtitleFile(clip.subtitles, clip.startSec),
+    subtitleFile(hostCaptionLines(clip.subtitles), clip.startSec),
     "utf8",
   );
   const cell = (value: unknown) => {
@@ -154,6 +155,9 @@ export async function renderClip(
       "原有疑点",
       "上一句",
       "下一句",
+      "说话人",
+      "进入字幕",
+      "归属依据",
     ],
     ...clip.subtitles.map((l, i) => [
       timecode(l.startSec, true),
@@ -165,6 +169,9 @@ export async function renderClip(
       l.correctionReason,
       clip.subtitles[i - 1]?.text ?? "",
       clip.subtitles[i + 1]?.text ?? "",
+      l.speakerRole ?? "unknown",
+      l.speakerRole === "host" ? "是" : "否",
+      l.speakerReason ?? "未分类",
     ]),
   ];
   await writeFile(

@@ -17,6 +17,11 @@ import { runFfmpeg, serveFile } from "./media";
 import { renderClip } from "./render";
 import { attachWordTimings, segmentCaptions } from "./captions";
 import { alignCaptions } from "./align-captions";
+import {
+  applySpeakerRoles,
+  loadSpeakerRoles,
+  hydrateDraftRoles,
+} from "./caption-speakers";
 
 interface Loaded {
   root: string;
@@ -83,9 +88,12 @@ export async function loadStudioProject(root: string): Promise<Loaded> {
   const store = join(root, "studio");
   await mkdir(store, { recursive: true });
   const draftFile = join(store, "draft.json");
-  const draft: StudioDraft = (await exists(draftFile))
+  const roles = await loadSpeakerRoles(root, lines);
+  const attributedLines = lines.map((l: any) => applySpeakerRoles(l, roles));
+  const storedDraft: StudioDraft = (await exists(draftFile))
     ? await readJson(draftFile)
     : { revision: 0, clips: [], settings: { ...defaultStudioSettings } };
+  const draft = hydrateDraftRoles(storedDraft, roles);
   validateDraft(draft, source.media.durationSec);
   const id = createHash("sha256").update(root).digest("hex").slice(0, 12);
   const project: StudioProject = {
@@ -115,9 +123,11 @@ export async function loadStudioProject(root: string): Promise<Loaded> {
         !!i.bounds?.uncertainIds?.length,
     })),
     lines: await readJson(join(root, "asr-raw.json"))
-      .then((asr) => segmentCaptions(attachWordTimings(lines, asr.segments)))
+      .then((asr) =>
+        segmentCaptions(attachWordTimings(attributedLines, asr.segments)),
+      )
       .catch((e) => {
-        if (e.code === "ENOENT") return lines;
+        if (e.code === "ENOENT") return attributedLines;
         throw e;
       }),
     chat: danmaku.events

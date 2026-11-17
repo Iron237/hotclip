@@ -11,11 +11,13 @@ import {
   resizeClip,
   editClipLine,
   replaceClipCaptions,
+  hostCaptionLines,
 } from "../../shared/studio";
 import { byteRange } from "../../studio-server/media";
 import { assText, encodingArgs } from "../../studio-server/render";
 import { makeAss } from "../../studio-server/render";
 import { segmentCaptions } from "../../studio-server/captions";
+import { applySpeakerRoles } from "../../studio-server/caption-speakers";
 import type { StudioLine, StudioProject } from "../../shared/studio";
 describe("studio boundary and media contracts", () => {
   const cue = (
@@ -31,6 +33,59 @@ describe("studio boundary and media contracts", () => {
     raw: text,
     uncertain: false,
     correctionReason: "",
+    speakerRole: "host",
+  });
+  it("only renders host captions and keeps unknown/game available for review", () => {
+    const lines = [
+      cue("host", 1, 2, "主播本人读游戏台词"),
+      { ...cue("game", 2, 3, "角色对白"), speakerRole: "game" as const },
+      { ...cue("unknown", 3, 4, "叠音待判"), speakerRole: undefined },
+    ];
+    expect(hostCaptionLines(lines).map((l) => l.id)).toEqual(["host"]);
+    const ass = makeAss(
+      { chat: [] } as unknown as StudioProject,
+      { id: "c", title: "t", startSec: 0, endSec: 5, subtitles: lines },
+      defaultStudioSettings,
+    );
+    expect(ass).toContain("主播本人读游戏台词");
+    expect(ass).not.toContain("角色对白");
+    expect(ass).not.toContain("叠音待判");
+  });
+  it("never merges host and game speech across touching ASR cues", () => {
+    const lines = [
+      cue("a", 0, 1, "主播回答"),
+      { ...cue("b", 1, 2, "游戏对白"), speakerRole: "game" as const },
+    ].map((l) => ({
+      ...l,
+      words: [
+        {
+          text: l.text,
+          startSec: l.startSec,
+          endSec: l.endSec,
+          timingSource: "aligned",
+        },
+      ],
+    }));
+    const result = segmentCaptions(lines);
+    expect(result.map((l) => l.speakerRole)).toEqual(["host", "game"]);
+  });
+  it("mixed source provenance becomes unknown while manual overrides survive refresh", () => {
+    const roles = new Map([
+      ["a", { role: "host" as const }],
+      ["b", { role: "game" as const }],
+    ]);
+    expect(
+      applySpeakerRoles(
+        { ...cue("c", 0, 2, "混合"), sourceIds: ["a", "b"] },
+        roles,
+      ).speakerRole,
+    ).toBe("unknown");
+    expect(
+      applySpeakerRoles(
+        { ...cue("c", 0, 2, "人工"), sourceIds: ["b"], speakerBasis: "manual" },
+        roles,
+      ).speakerRole,
+    ).toBe("host");
   });
   it("preserves manual timing and text through repeated trim/expand and reload", () => {
     const lines = [cue("a", 10, 12, "前一句"), cue("b", 12, 16, "后一句")];

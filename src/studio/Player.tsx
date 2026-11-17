@@ -21,6 +21,7 @@ import {
   scheduleChat,
   visibleChat,
   subtitleFile,
+  hostCaptionLines,
   timecode,
   type StudioProject,
   type StudioClip,
@@ -71,7 +72,8 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
   latest.current = { onTime, clip, chatEnabled, settings };
   const initial = useRef(initialTime);
   const audition = useRef<{ startSec: number; endSec: number } | null>(null);
-  const lines = linesOverride ?? clip?.subtitles ?? project.lines;
+  const sourceLines = linesOverride ?? clip?.subtitles ?? project.lines;
+  const lines = useMemo(() => hostCaptionLines(sourceLines), [sourceLines]);
   const active = lines.find((l) => l.startSec <= time && l.endSec > time);
   const cues = useMemo(
     () => scheduleChat(project.chat, settings.danmakuSize),
