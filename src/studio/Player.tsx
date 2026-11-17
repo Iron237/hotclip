@@ -68,6 +68,24 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
     [chatEnabled, setChatEnabled] = useState(true),
     [captions, setCaptions] = useState(true),
     [error, setError] = useState("");
+  const [shortcuts, setShortcuts] = useState(() => {
+    try {
+      return localStorage.getItem("hotclip-studio-shortcuts") !== "off";
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "hotclip-studio-shortcuts",
+        shortcuts ? "on" : "off",
+      );
+    } catch {
+      /* Private storage may be unavailable. */
+    }
+  }, [shortcuts]);
+  const beforeMute = useRef(0.8);
   const latest = useRef({ onTime, clip, chatEnabled, settings });
   latest.current = { onTime, clip, chatEnabled, settings };
   const initial = useRef(initialTime);
@@ -175,6 +193,89 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
       void v.play().catch((e) => setError(e.message));
     } else v.pause();
   };
+  const setPlayerVolume = (n: number) => {
+    const value = Math.max(0, Math.min(1, n));
+    setVolume(value);
+    if (video.current) video.current.volume = value;
+  };
+  const mute = () => {
+    if (volume > 0) {
+      beforeMute.current = volume;
+      setPlayerVolume(0);
+    } else setPlayerVolume(beforeMute.current || 0.8);
+  };
+  const fullscreen = () => {
+    const task = document.fullscreenElement
+      ? document.exitFullscreen()
+      : stage.current?.requestFullscreen();
+    void task?.catch(() => setError("当前浏览器不支持全屏"));
+  };
+  useEffect(() => {
+    if (!shortcuts || !ready) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (
+        e.defaultPrevented ||
+        e.isComposing ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.altKey ||
+        document.querySelector("dialog[open]")
+      )
+        return;
+      if (
+        target?.closest(
+          "input, textarea, select, [contenteditable]:not([contenteditable='false']), [role=slider], .trim-pan",
+        )
+      )
+        return;
+      if ((e.key === " " || e.key === "Enter") && target?.closest("button, a"))
+        return;
+      const v = video.current;
+      if (!v) return;
+      const key = e.key.toLowerCase();
+      if (
+        ![
+          " ",
+          "k",
+          "arrowleft",
+          "arrowright",
+          "arrowup",
+          "arrowdown",
+          "m",
+          "f",
+          "j",
+          "l",
+          ",",
+          ".",
+          "c",
+          "d",
+        ].includes(key)
+      )
+        return;
+      e.preventDefault();
+      if ([" ", "k", "m", "f", "c", "d"].includes(key) && e.repeat) return;
+      if (key === " " || key === "k") toggle();
+      else if (key === "arrowleft" || key === "arrowright")
+        seek(
+          v.currentTime + (key === "arrowleft" ? -1 : 1) * (e.shiftKey ? 1 : 5),
+        );
+      else if (key === "j" || key === "l")
+        seek(v.currentTime + (key === "j" ? -10 : 10));
+      else if (key === "arrowup" || key === "arrowdown")
+        setPlayerVolume(v.volume + (key === "arrowup" ? 0.05 : -0.05));
+      else if (key === "m") mute();
+      else if (key === "f") fullscreen();
+      else if (key === "c") setCaptions((x) => !x);
+      else if (key === "d") setChatEnabled((x) => !x);
+      else {
+        v.pause();
+        seek(v.currentTime + (key === "," ? -1 : 1) / (project.fps || 30));
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
   return (
     <section className="player" aria-label="视频播放器">
       <div className="video-stage" ref={stage}>
@@ -311,14 +412,7 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
             ))}
           </select>
         </label>
-        <button
-          aria-label={volume ? "静音" : "恢复音量"}
-          onClick={() => {
-            const n = volume ? 0 : 0.8;
-            setVolume(n);
-            if (video.current) video.current.volume = n;
-          }}
-        >
+        <button aria-label={volume ? "静音" : "恢复音量"} onClick={mute}>
           {volume ? <LuVolume2 /> : <LuVolumeX />}
         </button>
         <label className="volume">
@@ -335,19 +429,28 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player(
             }}
           />
         </label>
-        <button
-          aria-label="全屏"
-          onClick={() => {
-            if (document.fullscreenElement) void document.exitFullscreen();
-            else
-              void stage.current
-                ?.requestFullscreen()
-                .catch(() => setError("当前浏览器不支持全屏"));
-          }}
-        >
+        <button aria-label="全屏" onClick={fullscreen}>
           <LuMaximize />
         </button>
       </div>
+      <details className="keyboard-help">
+        <summary>播放快捷键</summary>
+        <label>
+          <input
+            type="checkbox"
+            checked={shortcuts}
+            onChange={(e) => setShortcuts(e.target.checked)}
+          />{" "}
+          启用播放快捷键
+        </label>
+        <p>
+          空格 / K 播放暂停 · ← → 5 秒（Shift 1 秒）· J / L 10 秒 · ↑ ↓ 音量 · M
+          静音 · F 全屏 · C 字幕 · D 弹幕 · , / . 暂停逐帧定位
+        </p>
+        <p>
+          输入框、字幕编辑和时间轴拨钮优先处理自己的按键；逐帧步长按原片帧率计算。
+        </p>
+      </details>
       {error && (
         <p className="inline-error" role="alert">
           {error}

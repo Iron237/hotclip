@@ -87,6 +87,36 @@ describe("studio boundary and media contracts", () => {
       ).speakerRole,
     ).toBe("host");
   });
+  it("carries acoustic attribution through segmentation and never overwrites a manual role", () => {
+    const roles = new Map([
+      [
+        "a",
+        {
+          role: "host" as const,
+          basis: "voiceprint-context" as const,
+          reason: "声纹及互动上下文支持",
+        },
+      ],
+    ]);
+    const restored = applySpeakerRoles(
+      {
+        ...cue("a-w0", 1, 2, "嗯对啊"),
+        speakerRole: "unknown",
+        words: [{ text: "嗯对啊", startSec: 1, endSec: 2 }],
+      },
+      roles,
+    );
+    expect(restored.speakerRole).toBe("host");
+    expect(segmentCaptions([restored])[0].speakerBasis).toBe(
+      "voiceprint-context",
+    );
+    expect(
+      applySpeakerRoles(
+        { ...restored, speakerRole: "game", speakerBasis: "manual" },
+        roles,
+      ).speakerRole,
+    ).toBe("game");
+  });
   it("preserves manual timing and text through repeated trim/expand and reload", () => {
     const lines = [cue("a", 10, 12, "前一句"), cue("b", 12, 16, "后一句")];
     let clip = resizeClip(lines, undefined, {

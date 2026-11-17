@@ -40,7 +40,7 @@ export async function classifyCaptionSpeakers(root: string, force = false) {
     });
   if (
     !force &&
-    previous?.version === 1 &&
+    [1, 2].includes(previous?.version) &&
     previous.sourceHash === sourceHash &&
     previous.model === "gpt-6.1-sol" &&
     Array.isArray(previous.items) &&

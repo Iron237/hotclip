@@ -3,9 +3,14 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import type { StudioLine, StudioDraft } from "../shared/studio";
 type Role = NonNullable<StudioLine["speakerRole"]>;
+type RoleEvidence = {
+  role: Role;
+  reason?: string;
+  basis?: StudioLine["speakerBasis"];
+};
 export function applySpeakerRoles(
   line: StudioLine,
-  roles: Map<string, { role: Role; reason?: string }>,
+  roles: Map<string, RoleEvidence>,
 ): StudioLine {
   if (line.speakerBasis === "manual") return line;
   const ids = line.sourceIds?.length
@@ -22,7 +27,9 @@ export function applySpeakerRoles(
   return {
     ...line,
     speakerRole: values.size === 1 ? [...values][0] : "unknown",
-    speakerBasis: "semantic-context",
+    speakerBasis: found.some((r) => r?.basis === "voiceprint-context")
+      ? "voiceprint-context"
+      : "semantic-context",
     speakerReason:
       values.size > 1
         ? "该句跨越多种声音来源，需回听拆分"
@@ -39,7 +46,7 @@ export async function loadSpeakerRoles(root: string, original: StudioLine[]) {
       if (e.code === "ENOENT") return null;
       throw e;
     });
-  const roles = new Map<string, { role: Role; reason?: string }>();
+  const roles = new Map<string, RoleEvidence>();
   if (!data) return roles;
   const hash = createHash("sha256")
     .update(JSON.stringify(original))
@@ -61,7 +68,7 @@ export async function loadSpeakerRoles(root: string, original: StudioLine[]) {
 }
 export function hydrateDraftRoles(
   draft: StudioDraft,
-  roles: Map<string, { role: Role; reason?: string }>,
+  roles: Map<string, RoleEvidence>,
 ): StudioDraft {
   return {
     ...draft,

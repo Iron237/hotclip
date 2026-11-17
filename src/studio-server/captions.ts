@@ -186,9 +186,11 @@ export function segmentCaptions(lines: StudioLine[]): StudioLine[] {
         speakerRole: first.line.speakerRole ?? "unknown",
         speakerBasis: sources.every((l) => l.speakerBasis === "manual")
           ? "manual"
-          : sources.some((l) => l.speakerBasis === "semantic-context")
-            ? "semantic-context"
-            : "unclassified",
+          : sources.some((l) => l.speakerBasis === "voiceprint-context")
+            ? "voiceprint-context"
+            : sources.some((l) => l.speakerBasis === "semantic-context")
+              ? "semantic-context"
+              : "unclassified",
         speakerReason: [
           ...new Set(sources.map((l) => l.speakerReason).filter(Boolean)),
         ].join("；"),

@@ -749,6 +749,68 @@ h1 span {
   position: absolute;
   inset: 0;
 }
+.trim-tools {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.trim-tools .text-button,
+.trim-foot .text-button {
+  min-inline-size: 28px;
+  min-block-size: 28px;
+}
+.trim-pan {
+  position: absolute;
+  top: 32px;
+  inset-inline: 0;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.trim-pan:active {
+  cursor: grabbing;
+}
+.trim-fill {
+  pointer-events: none;
+}
+.trim-range {
+  touch-action: pan-y;
+}
+.trim-foot > span {
+  text-align: center;
+  line-height: 1.7;
+}
+.trim-foot > button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.keyboard-help {
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.keyboard-help summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.keyboard-help p {
+  line-height: 1.8;
+}
+.keyboard-help label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-block: 8px;
+}
+.keyboard-help input {
+  width: auto;
+}
 .trim-range {
   position: absolute;
   top: 30px;

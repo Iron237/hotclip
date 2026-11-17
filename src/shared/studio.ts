@@ -19,7 +19,7 @@ export interface StudioLine {
   timingStatus?: "aligned" | "needs-alignment" | "manual";
   boundaryPartial?: boolean;
   speakerRole?: "host" | "game" | "unknown";
-  speakerBasis?: "semantic-context" | "manual" | "unclassified";
+  speakerBasis?: "semantic-context" | "voiceprint-context" | "manual" | "unclassified";
   speakerReason?: string;
 }
 /** Missing attribution is not permission to display game dialogue. */

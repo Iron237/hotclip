@@ -1061,9 +1061,11 @@ function Studio({ project }: { project: StudioProject }) {
                             归属：
                             {l.speakerBasis === "manual"
                               ? "人工指定"
-                              : l.speakerBasis === "semantic-context"
-                                ? "上下文推断（未声纹确认）"
-                                : "尚未分类"}{" "}
+                              : l.speakerBasis === "voiceprint-context"
+                                ? "声纹比对＋上下文复核"
+                                : l.speakerBasis === "semantic-context"
+                                  ? "上下文推断（未声纹确认）"
+                                  : "尚未分类"}{" "}
                             {l.speakerReason}
                           </p>
                           <p>

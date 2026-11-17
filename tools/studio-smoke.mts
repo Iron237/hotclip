@@ -173,6 +173,72 @@ try {
   await expect(page.getByRole("slider", { name: "入点拨钮" })).toHaveValue(
     "2.51",
   );
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(handle).toHaveValue("2.511");
+  await page.keyboard.press("Shift+ArrowLeft");
+  const trim = page.locator(".trim-track");
+  const view = async () => [
+    Number(await trim.getAttribute("data-low")),
+    Number(await trim.getAttribute("data-high")),
+  ];
+  const initialView = await view();
+  const box = (await trim.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.3, box.y + 45);
+  await page.mouse.wheel(0, -400);
+  await expect
+    .poll(async () => {
+      const v = await view();
+      return v[1] - v[0];
+    })
+    .toBeLessThan(initialView[1] - initialView[0]);
+  const zoomedView = await view();
+  assert.ok(
+    Math.abs(
+      initialView[0] +
+        (initialView[1] - initialView[0]) * 0.3 -
+        (zoomedView[0] + (zoomedView[1] - zoomedView[0]) * 0.3),
+    ) < 0.01,
+  );
+  await page.keyboard.down("Shift");
+  await page.mouse.wheel(0, 100);
+  await page.keyboard.up("Shift");
+  await expect
+    .poll(async () => (await view())[0])
+    .toBeGreaterThan(zoomedView[0]);
+  await page.getByRole("button", { name: "适合选段", exact: true }).click();
+  await page.locator(".trim-heading strong").click();
+  await page.keyboard.press("ArrowRight");
+  await expect
+    .poll(() => page.locator("video").evaluate((v) => v.currentTime))
+    .toBeCloseTo(7.51, 2);
+  await page.keyboard.press("Shift+ArrowLeft");
+  await expect
+    .poll(() => page.locator("video").evaluate((v) => v.currentTime))
+    .toBeCloseTo(6.51, 2);
+  await page.keyboard.press("m");
+  await expect
+    .poll(() => page.locator("video").evaluate((v) => v.volume))
+    .toBe(0);
+  await page.keyboard.press("m");
+  await expect
+    .poll(() => page.locator("video").evaluate((v) => v.volume))
+    .toBe(0.8);
+  await page.keyboard.press(".");
+  await expect
+    .poll(() => page.locator("video").evaluate((v) => v.paused))
+    .toBe(true);
+  await page.getByRole("button", { name: "精确设置入点", exact: true }).click();
+  const precise = page.getByLabel("原片时间 · HH:MM:SS.mmm");
+  await precise.fill("00:00:02.510");
+  const beforeInputKey = await page
+    .locator("video")
+    .evaluate((v) => v.currentTime);
+  await precise.press("ArrowLeft");
+  assert.equal(
+    await page.locator("video").evaluate((v) => v.currentTime),
+    beforeInputKey,
+  );
+  await page.getByRole("button", { name: "设置并跳转" }).click();
   await page.getByRole("button", { name: "精确设置出点", exact: true }).click();
   await page.getByLabel("原片时间 · HH:MM:SS.mmm").fill("00:00:07.500");
   await page.getByRole("button", { name: "设置并跳转" }).click();
@@ -263,11 +329,9 @@ try {
   await expect(page.locator(".subtitle-row")).toHaveCount(2);
   await page.getByLabel(/显示排除与待判句/).check();
   await expect(page.locator(".subtitle-row")).toHaveCount(4);
-  const gameRow = page
-    .locator(".subtitle-row")
-    .filter({
-      has: page.getByRole("textbox", { name: "字幕 game1", exact: true }),
-    });
+  const gameRow = page.locator(".subtitle-row").filter({
+    has: page.getByRole("textbox", { name: "字幕 game1", exact: true }),
+  });
   await gameRow.getByRole("radio", { name: "主播", exact: true }).check();
   await expect(page.getByLabel("画面上的当前字幕")).toHaveValue(
     "这是游戏角色对白",
