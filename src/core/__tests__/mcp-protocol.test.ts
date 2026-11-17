@@ -24,7 +24,7 @@ it("exposes and validates genre and duration on both detection tools", async () 
 });
 
 it("exposes and validates the same optional subtitle path on all tools", async () => {
-  for (const tool of MCP_TOOLS) {
+  for (const tool of MCP_TOOLS.filter(t=>t.name!=="read_recording_context")) {
     const args = { videoPath: "/v.mp4", ...(tool.name === "export_selected_clips" ? { clips: [{ title: "test", startSec: 0, endSec: 1 }] } : {}) };
     expect((tool.inputSchema.properties as Record<string, unknown>).subtitlePath).toMatchObject({ type: "string" });
     expect(validateToolArgs(tool, { ...args, subtitlePath: 5 })).toContain("subtitlePath");
@@ -52,7 +52,7 @@ describe("handleMcpMessage", () => {
   it("tools/list includes the calling-agent export tool", async () => {
     const res = await handleMcpMessage({ id: 2, method: "tools/list" }, noop, "0");
     const tools = (res as { result: { tools: typeof MCP_TOOLS } }).result.tools;
-    expect(tools.map((t) => t.name)).toEqual(["clip_chat_video", "clip_video", "detect_highlights", "transcribe_video", "export_selected_clips"]);
+    expect(tools.map((t) => t.name)).toEqual(["structure_recording", "read_recording_context", "clip_chat_video", "clip_video", "detect_highlights", "transcribe_video", "export_selected_clips"]);
     for (const t of tools) expect(t.inputSchema).toHaveProperty("properties");
   });
 

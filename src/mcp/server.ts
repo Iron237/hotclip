@@ -24,6 +24,8 @@ import { exportSelectedClips } from "../core/selected-clips";
 import { checkDomainLexicon } from "../core/domain-lexicon";
 import { transcriptPage } from "../core/transcript-page";
 import { clipChatVideo } from "../core/chat-clip";
+import { structureRecording,validateBackground } from "../core/structure-recording";
+import { readRecordingContext } from "../core/context-packets";
 
 // MCP clients need not launch from the repository directory.
 const fontsDir = join(__dirname, "../../resources/fonts");
@@ -64,7 +66,21 @@ async function loadReference(refPath: unknown): Promise<{ profile?: ReferencePro
 
 /** 工具实现:返回给 Agent 的文本。 */
 async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
+  if(name==="read_recording_context")return JSON.stringify(await readRecordingContext(String(args.contextDir),{
+    startSec:typeof args.startSec==="number"?args.startSec:undefined,endSec:typeof args.endSec==="number"?args.endSec:undefined,
+    episodeId:typeof args.episodeId==="string"?args.episodeId:undefined,eventIds:args.eventIds as string[]|undefined,offset:typeof args.offset==="number"?args.offset:undefined,limit:typeof args.limit==="number"?args.limit:undefined,
+  }));
   const videoPath = String(args.videoPath);
+  if(name==="structure_recording")return JSON.stringify(await structureRecording(videoPath,{
+    modelsRoot:modelsRoot(),cacheDir:cacheDir(),
+    outDir:typeof args.outDir==="string"?args.outDir:undefined,danmakuPath:typeof args.danmakuPath==="string"?args.danmakuPath:undefined,
+    danmakuOffsetSec:typeof args.danmakuOffsetSec==="number"?args.danmakuOffsetSec:undefined,danmakuScale:typeof args.danmakuScale==="number"?args.danmakuScale:undefined,
+    background:validateBackground(args.background),visualTimes:args.visualTimes as number[]|undefined,
+    resume:args.resume===true,
+    maxInterests:typeof args.maxInterests==="number"?args.maxInterests:undefined,diarize:args.diarize!==false,
+    subtitlePath:typeof args.subtitlePath==="string"?args.subtitlePath:undefined,
+    asr:{engineId:"qwen3",localServiceUrl:typeof args.localServiceUrl==="string"?args.localServiceUrl:undefined},
+  }));
   if (name === "clip_chat_video") {
     return JSON.stringify(await clipChatVideo(videoPath, {
       modelsRoot: modelsRoot(), cacheDir: cacheDir(), fontsDir, renderCacheDir: renderCacheDir(), evidenceCacheDir: evidenceCacheDir(),

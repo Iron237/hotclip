@@ -39,6 +39,28 @@ const selectionProperties = {
 
 export const MCP_TOOLS: McpToolDef[] = [
   {
+    name:"structure_recording",
+    description:"把录播转换为结构化上下文，不剪片。默认Qwen转写/词库/音色聚类、Terra high校核与互动理解；读同名XML/JSONL弹幕，输出背景、主播/游戏话语、弹幕、互动关系、话题、带证据的兴趣点、分页上下文包和CSV对照表。画面观察仅在提供visualTimes时由gpt-6.1-sol high执行。候选关联和未知来源保留不确定性。",
+    inputSchema:{type:"object",properties:{
+      videoPath:{type:"string",description:"源录播绝对路径"},outDir:{type:"string",description:"尚不存在的输出目录绝对路径"},
+      resume:{type:"boolean",description:"继续相同outDir的失败任务；源文件及处理选项必须一致，复用已完成的转写、聚类和模型结果"},
+      danmakuPath:{type:"string",description:"可选弹幕XML/JSONL绝对路径；默认查找视频同名文件"},
+      danmakuOffsetSec:{type:"number",description:"弹幕相对秒到视频时间的偏移；默认0，不冒充已校准"},
+      danmakuScale:{type:"number",description:"显式时钟缩放校准，默认1，范围0.9–1.1"},
+      background:{type:"object",description:"用户已知直播背景；未知留空",properties:{streamerName:{type:"string"},roomId:{type:"string"},title:{type:"string"},gameName:{type:"string"},gameChapter:{type:"string"},notes:{type:"string"}},additionalProperties:false},
+      visualTimes:{type:"array",items:{type:"number"},maxItems:12,description:"可选画面观察时刻，源片秒；不填不进行视觉推断"},
+      diarize:{type:"boolean",description:"默认true，本地音色聚类辅助角色推断"},
+      maxInterests:{type:"number",description:"最多兴趣点候选，默认12，0关闭，最大50；不保证凑足数量"},
+      subtitlePath:{type:"string",description:"可选已有SRT/VTT原稿，仍进行语境校核，原字词时间可能是估算"},
+      localServiceUrl:{type:"string",description:"Qwen本机服务默认http://127.0.0.1:8766"},
+    },required:["videoPath"]},
+  },
+  {
+    name:"read_recording_context",
+    description:"按源时间或话题ID读取已结构化录播的上下文包，无模型调用。返回事件、相关弹幕/关系、话题、兴趣点和证据引用；用nextOffset翻页，避免整场一次输入。",
+    inputSchema:{type:"object",properties:{contextDir:{type:"string",description:"structure_recording输出目录绝对路径"},startSec:{type:"number"},endSec:{type:"number"},episodeId:{type:"string"},eventIds:{type:"array",items:{type:"string"},maxItems:50,description:"按事件ID精确回查证据，最多50个"},offset:{type:"number",description:"默认0"},limit:{type:"number",description:"每页1–100条，默认60"}},required:["contextDir"]},
+  },
+  {
     name: "clip_chat_video",
     description: "聊天录播自动切片：默认 Qwen3 ASR → 终末地/B站词库 → Codex gpt-6.1-terra high 跨段字幕和话题校核 → 时间对齐 → 无标点字幕和完整话题切片。排除话题结束后的游戏剧情/游戏解说，保留自然气口。同步导出 SRT、字幕与上下文 CSV/JSON 对照表及审计记录。视觉校验可选，固定 gpt-6.1-sol high。需要运行本地 Qwen 服务和已登录的 Codex CLI，不需额外 LLM API key。说话人角色由本地音色聚类辅助语境推断，簇不代表已确认身份。",
     inputSchema: { type: "object", properties: {

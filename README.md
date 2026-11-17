@@ -1,4 +1,4 @@
-> **此 fork：主播聊天自动切片。** `clip_chat_video` 使用默认 Qwen ASR、领域词库、音色聚类、Terra high 字幕与话题校核；导出无标点字幕和上下文对照表，可选 6.1 Sol high 视觉抽查。见 [聊天自动切片](docs/CHAT_CLIPPING.md)。手动按转写选段仍可使用 `export_selected_clips`，接入方式见 [Codex MCP 使用说明](docs/CODEX_MCP.md)。
+> **此 fork：主播聊天自动切片与录播上下文。** `structure_recording` 将录播和弹幕转换成背景、事件、互动关系、话题和兴趣点，`read_recording_context` 按需回查，见 [结构化上下文工作流](docs/STRUCTURED_CONTEXT_WORKFLOW.md)。`clip_chat_video` 使用默认 Qwen ASR、领域词库、音色聚类、Terra high 字幕与话题校核；导出无标点字幕和上下文对照表，可选 6.1 Sol high 视觉抽查。见 [聊天自动切片](docs/CHAT_CLIPPING.md) 和 [Codex MCP 接入](docs/CODEX_MCP.md)。
 
 <div align="center">
 
