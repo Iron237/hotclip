@@ -13,13 +13,16 @@ node node_modules/tsx/dist/cli.mjs tools/transcribe-full-recording.mts args.json
 node node_modules/tsx/dist/cli.mjs tools/audit-full-recording.mts D:/runs/recording
 # 可选：提前准备后续 Terra 修订，最后的数字为从 0 开始的分块编号
 node node_modules/tsx/dist/cli.mjs tools/audit-full-recording.mts D:/runs/recording --corrections-only 3
-# 可选：全片转写与 Terra 校核完成后，提前核对用户标记，缓存供最终表格复用
-node node_modules/tsx/dist/cli.mjs tools/refine-recording-interests.mts D:/runs/recording --markers-only
-# 等待扫描完成，逐条核对用户标记并生成表格
-node node_modules/tsx/dist/cli.mjs tools/refine-recording-interests.mts D:/runs/recording
+# 扫描完成后，新增候选精查与用户标记核对可并行
+node node_modules/tsx/dist/cli.mjs tools/refine-recording-interests.mts D:/runs/recording --automatic-only
+node node_modules/tsx/dist/cli.mjs tools/resolve-recording-markers.mts D:/runs/recording
+# 等待每个结果落盘后校验、标记重叠并汇总表格
+node node_modules/tsx/dist/cli.mjs tools/assemble-recording-table.mts D:/runs/recording
 ```
 
 全片扫描最多同时处理两个分块。已有通过校验的分块可恢复，模型缓存按输入、schema、模型和图片内容寻址。此工具链是本机 CLI 工作流，尚未单独包装成一个 MCP 工具。
+
+手工标记按三个一组核对，提供已有全片候选作定位参考、附近校核原文与已观察画面的证据，仍独立判断是否对应。空标签可据原文补标题，声音梗无法从文字定位时保留未定位，不能拿邻近故事替代。较长候选允许引用最多200条真实证据；数量较多本身不代表证据越界。表格对明显重叠的候选提示合并或择一。
 
 ASR 若因时间戳校验中止，先用 `tools/inspect-qwen-window.mts ROOT WINDOW_INDEX` 对失败的 28 秒窗口独立复识，检查保存的原始响应。不要放宽时间戳校验或跳过该段；确认后归档 `asr-error.json`，以原参数重跑转写，自动从已完成窗口接续。受影响的提前校核进程也应归档其错误回执并从对应分块继续。
 

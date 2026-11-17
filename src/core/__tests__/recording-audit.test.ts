@@ -20,4 +20,8 @@ describe("full recording audit",()=>{
  it("preserves the natural gap without padding into the next game topic",()=>{
   const bounds=auditBounds(candidate,lines,10);expect(bounds.endSec).toBeCloseTo(6.1);expect(bounds.boundaryReview).toBe(true);expect(bounds.endSec).toBeLessThan(lines[2].startSec);
  });
+ it("accepts a longer story with more than twenty genuine evidence lines",()=>{
+  const story=Array.from({length:35},(_,i)=>({...lines[0],id:`story${i}`,startSec:i*2,endSec:i*2+1}));
+  expect(()=>auditBounds({...candidate,firstId:story[0].id,lastId:story.at(-1)!.id,evidenceIds:story.map(s=>s.id)},story,100)).not.toThrow();
+ });
 });
